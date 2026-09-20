@@ -1598,7 +1598,22 @@ function App() {
               <Head
                 title="기억을 모으다"
                 sub="별일 없는 날에도, 남겨두고 싶은 순간은 있어요."
-              />
+              >
+                <button
+                  className="secondary"
+                  onClick={() =>
+                    setModal({
+                      type: "trip",
+                      title: "",
+                      date: TODAY,
+                      endDate: TODAY,
+                    })
+                  }
+                >
+                  <Plane size={15} />
+                  여행 표지 추가
+                </button>
+              </Head>
               <div className="view-toolbar">
                 <div className="pills">
                   {["전체", "일상", "장소·여행"].map((v) => (
