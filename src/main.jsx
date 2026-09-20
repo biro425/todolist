@@ -41,8 +41,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./style.css";
 import "./fresh.css";
-import "./notebook.css";
 import "./timeline.css";
+import "./daylog-paper.css";
 const dateStr = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const TODAY = dateStr(new Date()),
@@ -1635,6 +1635,24 @@ function App() {
                 title="나에게 맞게"
                 sub="내 기록을 관리하고, 다른 캘린더와 이어보세요."
               />
+              <section className="settings-overview" aria-label="내 공간 요약">
+                {[
+                  ["전체 항목", data.items.length],
+                  ["일정", data.items.filter((i) => i.type === "event").length],
+                  ["여행", data.trips.length],
+                  [
+                    "사진 있는 기록",
+                    data.items.filter(
+                      (i) => ["record", "place"].includes(i.type) && i.photo,
+                    ).length,
+                  ],
+                ].map(([label, value]) => (
+                  <div className="settings-stat" key={label}>
+                    <span>{label}</span>
+                    <b>{value}</b>
+                  </div>
+                ))}
+              </section>
               <div className="settings-grid">
                 <Card title="데이터 백업 & 복원" icon={Download}>
                   <div className="settings-body">
