@@ -517,8 +517,8 @@ function App() {
             )
           }
         >
-          <Plus size={16} />
-          새로 추가
+          {page === "places" ? <MapPin size={16} /> : <Plus size={16} />}
+          {page === "places" ? "장소 기록 추가" : "새로 추가"}
         </button>
       </div>
     </div>
@@ -765,12 +765,16 @@ function App() {
     setData((d) => ({ ...d, shared: true }));
     notify("다른 캘린더에 가져올 수 있는 파일을 만들었어요");
   }
-  const Empty = ({ text = "아직 기록이 없어요", type = "record" }) => (
+  const Empty = ({
+    text = "아직 기록이 없어요",
+    type = "record",
+    actionLabel = "첫 기록 남기기",
+  }) => (
     <div className="empty">
       <span className="empty-symbol">＋</span>
       <p>{text}</p>
       <button className="secondary" onClick={() => add(type)}>
-        첫 기록 남기기
+        {actionLabel}
       </button>
     </div>
   );
@@ -1633,7 +1637,11 @@ function App() {
                         <RecordCard key={i.id} i={i} onHover={setMapFocus} />
                       ))}
                     {!items.some((i) => ["record", "place"].includes(i.type) && i.place) && (
-                      <Empty text="첫 번째 발자국을 남겨볼까요?" type="record" />
+                      <Empty
+                        text="첫 번째 발자국을 남겨볼까요?"
+                        type="record"
+                        actionLabel="장소 기록 추가"
+                      />
                     )}
                   </div>
                 </div>
@@ -1648,7 +1656,22 @@ function App() {
                         <p>{t.date} — {t.endDate}</p>
                         <span>{items.filter((i) => i.trip === t.id).length}개의 기록</span>
                       </button>
-                      <button className="trip-edit" onClick={() => setModal(t)}>여행 정보 수정</button>
+                      <div className="trip-card-actions">
+                        <button
+                          className="trip-add-record"
+                          onClick={() =>
+                            add("record", {
+                              trip: t.id,
+                              date: t.date || selected,
+                            })
+                          }
+                        >
+                          <Plus size={13} /> 기록 추가
+                        </button>
+                        <button className="trip-edit" onClick={() => setModal(t)}>
+                          여행 정보
+                        </button>
+                      </div>
                     </section>
                   ))}
                 </div>
@@ -2627,7 +2650,6 @@ function Editor({ initial, trips, onClose, onSave, onDelete, onCopy }) {
                 date: v.date,
                 trip: v.trip,
                 color: v.color || colors[0],
-                mood: v.mood || "편안해요",
                 companion: v.companion || "",
               });
               setPlaces([]);
@@ -2789,50 +2811,32 @@ function Editor({ initial, trips, onClose, onSave, onDelete, onCopy }) {
                         setV((current) => ({ ...current, ...place }))
                       }
                     />
-                    <label className="field">
-                      여행에 담기 (선택)
-                      <select
-                        value={v.trip || ""}
-                        onChange={(e) => change("trip", e.target.value)}
-                      >
-                        <option value="">일상의 장소로 남기기</option>
-                        {trips.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.title}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
                     {v.trip && (
-                      <div className="form-grid">
-                        <label className="field">
-                          여행 기록 종류
-                          <select
-                            value={v.tripCategory || "장소"}
-                            onChange={(e) => change("tripCategory", e.target.value)}
-                          >
-                            {["장소", "명소", "식당", "카페", "숙소", "이동", "메모"].map((category) => (
-                              <option key={category}>{category}</option>
-                            ))}
-                          </select>
-                        </label>
-                        {field("visitOrder", "방문 / 기록 순서", "number")}
-                      </div>
+                      <>
+                        <div className="trip-linked-notice">
+                          <Plane size={15} />
+                          <span>
+                            <b>{trips.find((trip) => trip.id === v.trip)?.title || "선택한 여행"}</b>
+                            에 자동으로 기록됩니다.
+                          </span>
+                        </div>
+                        <div className="form-grid">
+                          <label className="field">
+                            여행 기록 종류
+                            <select
+                              value={v.tripCategory || "장소"}
+                              onChange={(e) => change("tripCategory", e.target.value)}
+                            >
+                              {["장소", "명소", "식당", "카페", "숙소", "이동", "메모"].map((category) => (
+                                <option key={category}>{category}</option>
+                              ))}
+                            </select>
+                          </label>
+                          {field("visitOrder", "방문 / 기록 순서", "number")}
+                        </div>
+                      </>
                     )}
-                    <div className="form-grid">
-                      <label className="field">
-                        나만의 별점
-                        <select
-                          value={v.rating || "5"}
-                          onChange={(e) => change("rating", e.target.value)}
-                        >
-                          {[5, 4, 3, 2, 1].map((n) => (
-                            <option key={n} value={n}>
-                              {"★".repeat(n)}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                    <div className="form-grid compact-record-options">
                       <label className="subtask">
                         <input
                           type="checkbox"
@@ -2841,31 +2845,12 @@ function Editor({ initial, trips, onClose, onSave, onDelete, onCopy }) {
                         />
                         다시 가고 싶은 곳
                       </label>
+                      <span />
                     </div>
                     {field("companion", "함께한 사람")}
                   </>
                 )}
               </>
-            )}
-            {v.type === "record" && (
-              <label className="field">
-                오늘의 마음
-                <select
-                  value={v.mood || "편안해요"}
-                  onChange={(e) => change("mood", e.target.value)}
-                >
-                  {[
-                    "편안해요",
-                    "행복해요",
-                    "설레요",
-                    "뿌듯해요",
-                    "피곤해요",
-                    "아쉬워요",
-                  ].map((m) => (
-                    <option key={m}>{m}</option>
-                  ))}
-                </select>
-              </label>
             )}
             {["record", "place"].includes(v.type) && (
               <label className="photo-input">
