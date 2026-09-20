@@ -28,7 +28,6 @@ import {
   Clock,
   Repeat,
   SlidersHorizontal,
-  Map,
   Heart,
   ImagePlus,
   ExternalLink,
@@ -367,18 +366,29 @@ function App() {
   );
   const save = (item) => {
     setData((d) => {
-      if (d.items.some((i) => i.id === item.id))
+      let nextItem = { ...item };
+      if (
+        ["record", "place"].includes(nextItem.type) &&
+        nextItem.trip &&
+        (!nextItem.visitOrder || !Number.isFinite(+nextItem.visitOrder))
+      ) {
+        nextItem.visitOrder =
+          d.items
+            .filter((i) => i.trip === nextItem.trip && i.id !== nextItem.id)
+            .reduce((max, i) => Math.max(max, +i.visitOrder || 0), 0) + 1;
+      }
+      if (d.items.some((i) => i.id === nextItem.id))
         return {
           ...d,
-          items: d.items.map((i) => (i.id === item.id ? item : i)),
+          items: d.items.map((i) => (i.id === nextItem.id ? nextItem : i)),
         };
-      const first = { ...item, id: uid() },
+      const first = { ...nextItem, id: uid() },
         extra = [];
-      if (item.type === "event" && item.repeat && item.repeat !== "없음") {
+      if (nextItem.type === "event" && nextItem.repeat && nextItem.repeat !== "없음") {
         for (let n = 1; n < 12; n++) {
-          let date = shift(item.date, item.repeat === "매주" ? 7 * n : n);
-          if (item.repeat === "매월") {
-            let t = new Date(item.date + "T12:00");
+          let date = shift(nextItem.date, nextItem.repeat === "매주" ? 7 * n : n);
+          if (nextItem.repeat === "매월") {
+            let t = new Date(nextItem.date + "T12:00");
             const day = t.getDate();
             t.setDate(1);
             t.setMonth(t.getMonth() + n);
@@ -433,6 +443,39 @@ function App() {
     });
   const tasks = items.filter((i) => i.type === "task"),
     done = tasks.filter((i) => i.done).length;
+  const selectedTrip = data.trips.find((t) => t.id === tripFilter);
+  const tripMemories = selectedTrip
+    ? items
+        .filter((i) => ["record", "place"].includes(i.type) && i.trip === selectedTrip.id)
+        .sort(
+          (a, b) =>
+            (+a.visitOrder || Number.MAX_SAFE_INTEGER) -
+              (+b.visitOrder || Number.MAX_SAFE_INTEGER) ||
+            a.date.localeCompare(b.date),
+        )
+    : [];
+  const moveTripMemory = (id, direction) =>
+    setData((d) => {
+      const ordered = d.items
+        .filter((i) => ["record", "place"].includes(i.type) && i.trip === tripFilter)
+        .sort(
+          (a, b) =>
+            (+a.visitOrder || Number.MAX_SAFE_INTEGER) -
+              (+b.visitOrder || Number.MAX_SAFE_INTEGER) ||
+            a.date.localeCompare(b.date),
+        );
+      const from = ordered.findIndex((i) => i.id === id);
+      const to = from + direction;
+      if (from < 0 || to < 0 || to >= ordered.length) return d;
+      [ordered[from], ordered[to]] = [ordered[to], ordered[from]];
+      const orders = new Map(ordered.map((i, index) => [i.id, index + 1]));
+      return {
+        ...d,
+        items: d.items.map((i) =>
+          orders.has(i.id) ? { ...i, visitOrder: orders.get(i.id) } : i,
+        ),
+      };
+    });
   const nav = [
     ["home", LayoutDashboard, "대시보드"],
     ["calendar", CalendarDays, "캘린더"],
@@ -1526,63 +1569,69 @@ function App() {
                   ))}
                 </div>
               </div>
-              <div className="places-layout">
-                <div className="card map-card">
-                  <PlaceMap
-                    points={items.filter(
-                      (i) =>
-                        ["record", "place"].includes(i.type) &&
-                        Number.isFinite(+i.lat) &&
-                        Number.isFinite(+i.lng) &&
-                        (!tripFilter ||
-                          (tripFilter === "favorite"
-                            ? i.favorite
-                            : i.trip === tripFilter)),
+              {selectedTrip ? (
+                <TripItinerary
+                  trip={selectedTrip}
+                  memories={tripMemories}
+                  onOpen={setMemoryPreview}
+                  onMove={moveTripMemory}
+                  onAdd={() => add("record", { trip: selectedTrip.id })}
+                  onEditTrip={() => setModal(selectedTrip)}
+                />
+              ) : (
+                <div className="places-layout">
+                  <div className="card map-card">
+                    <PlaceMap
+                      points={items.filter(
+                        (i) =>
+                          ["record", "place"].includes(i.type) &&
+                          Number.isFinite(+i.lat) &&
+                          Number.isFinite(+i.lng) &&
+                          (!tripFilter ||
+                            (tripFilter === "favorite"
+                              ? i.favorite
+                              : i.trip === tripFilter)),
+                      )}
+                      onSelect={setMemoryPreview}
+                      onPick={(p) => add("record", p)}
+                    />
+                    <div className="map-caption">
+                      <MapPin size={14} /> 지도를 클릭해 새로운 장소를
+                      기록해보세요 <span>© OpenStreetMap</span>
+                    </div>
+                  </div>
+                  <div className="place-list">
+                    {items
+                      .filter(
+                        (i) =>
+                          ["record", "place"].includes(i.type) &&
+                          !!i.place &&
+                          (!tripFilter ||
+                            (tripFilter === "favorite"
+                              ? i.favorite
+                              : i.trip === tripFilter)),
+                      )
+                      .map((i) => (
+                        <RecordCard key={i.id} i={i} />
+                      ))}
+                    {!items.some((i) => ["record", "place"].includes(i.type) && i.place) && (
+                      <Empty text="첫 번째 발자국을 남겨볼까요?" type="record" />
                     )}
-                    onSelect={setMemoryPreview}
-                    onPick={(p) => add("record", p)}
-                  />
-                  <div className="map-caption">
-                    <MapPin size={14} /> 지도를 클릭해 새로운 장소를
-                    기록해보세요 <span>© OpenStreetMap</span>
                   </div>
                 </div>
-                <div className="place-list">
-                  {items
-                    .filter(
-                      (i) =>
-                        ["record", "place"].includes(i.type) &&
-                        !!i.place &&
-                        (!tripFilter ||
-                          (tripFilter === "favorite"
-                            ? i.favorite
-                            : i.trip === tripFilter)),
-                    )
-                    .map((i) => (
-                      <RecordCard key={i.id} i={i} />
-                    ))}
-                  {!items.some((i) => ["record", "place"].includes(i.type) && i.place) && (
-                    <Empty text="첫 번째 발자국을 남겨볼까요?" type="record" />
-                  )}
-                </div>
-              </div>
+              )}
               {data.trips.length > 0 && (
                 <div className="trip-list">
                   {data.trips.map((t) => (
-                    <button
-                      className="card trip-card"
-                      key={t.id}
-                      onClick={() => setModal(t)}
-                    >
-                      <Plane size={24} />
-                      <h3>{t.title}</h3>
-                      <p>
-                        {t.date} — {t.endDate}
-                      </p>
-                      <span>
-                        {items.filter((i) => i.trip === t.id).length}곳의 기억
-                      </span>
-                    </button>
+                    <section className="card trip-card" key={t.id}>
+                      <button className="trip-open" onClick={() => setTripFilter(t.id)}>
+                        <Plane size={24} />
+                        <h3>{t.title}</h3>
+                        <p>{t.date} — {t.endDate}</p>
+                        <span>{items.filter((i) => i.trip === t.id).length}곳의 여정</span>
+                      </button>
+                      <button className="trip-edit" onClick={() => setModal(t)}>여행 정보 수정</button>
+                    </section>
                   ))}
                 </div>
               )}
@@ -1934,6 +1983,163 @@ function MemoryViewer({ memory, trip, onClose, onEdit }) {
   );
 }
 
+function TripItinerary({ trip, memories, onOpen, onMove, onAdd, onEditTrip }) {
+  const [routeInfo, setRouteInfo] = useState(null);
+  const [routeError, setRouteError] = useState("");
+  const mapped = memories.filter(
+    (i) => Number.isFinite(+i.lat) && Number.isFinite(+i.lng),
+  );
+  return (
+    <section className="trip-itinerary">
+      <header className="trip-itinerary-head">
+        <div>
+          <span className="panel-index">TRIP ROUTE</span>
+          <h2>{trip.title}</h2>
+          <p>{trip.date} — {trip.endDate} · {memories.length}곳의 여정</p>
+        </div>
+        <div className="trip-itinerary-actions">
+          <button className="secondary" onClick={onEditTrip}>여행 정보</button>
+          <button className="primary" onClick={onAdd}><Plus size={15} /> 장소 추가</button>
+        </div>
+      </header>
+      <div className="trip-route-summary">
+        <span><Navigation size={15} /> 방문 순서대로 실제 도로를 연결해요</span>
+        {routeInfo && (
+          <strong>
+            {(routeInfo.distance / 1000).toFixed(1)}km · 약 {Math.max(1, Math.round(routeInfo.duration / 60))}분
+          </strong>
+        )}
+        {routeError && <small>{routeError}</small>}
+      </div>
+      <div className="trip-itinerary-layout">
+        <div className="trip-route-map-wrap">
+          <TripRouteMap
+            points={mapped}
+            onSelect={onOpen}
+            onInfo={setRouteInfo}
+            onError={setRouteError}
+          />
+          <div className="map-caption">
+            <MapPin size={14} /> 번호는 방문 순서예요
+            <span>© OpenStreetMap · Route by OSRM</span>
+          </div>
+        </div>
+        <div className="trip-stop-list">
+          {memories.map((memory, index) => (
+            <article className="trip-stop" key={memory.id}>
+              <div className="trip-stop-number"><span>{index + 1}</span></div>
+              <button className="trip-stop-main" onClick={() => onOpen(memory)}>
+                {memory.photo ? (
+                  <img src={memory.photo} alt="" />
+                ) : (
+                  <span className="trip-stop-photo"><MapPin size={20} /></span>
+                )}
+                <span className="trip-stop-copy">
+                  <small>{memory.place || "장소 이름을 더해보세요"}</small>
+                  <b>{memory.title}</b>
+                  <em>{memory.note || "이곳의 이야기를 남겨보세요."}</em>
+                </span>
+              </button>
+              <div className="trip-stop-order" aria-label="방문 순서 변경">
+                <button disabled={index === 0} onClick={() => onMove(memory.id, -1)} aria-label="앞 순서로">↑</button>
+                <button disabled={index === memories.length - 1} onClick={() => onMove(memory.id, 1)} aria-label="뒤 순서로">↓</button>
+              </div>
+            </article>
+          ))}
+          {!memories.length && (
+            <div className="trip-empty">
+              <MapPin size={24} />
+              <p>이 여행에 첫 장소를 담아보세요.</p>
+              <button className="secondary" onClick={onAdd}>장소 추가하기</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TripRouteMap({ points, onSelect, onInfo, onError }) {
+  const ref = useRef();
+  const map = useRef();
+  const markerLayer = useRef();
+  const routeLayer = useRef();
+  const routeKey = points.map((p) => `${p.id}:${p.lng},${p.lat}`).join("|");
+  useEffect(() => {
+    map.current = L.map(ref.current, { zoomControl: true }).setView(
+      [37.55, 126.99],
+      12,
+    );
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
+    }).addTo(map.current);
+    markerLayer.current = L.layerGroup().addTo(map.current);
+    routeLayer.current = L.layerGroup().addTo(map.current);
+    return () => map.current.remove();
+  }, []);
+  useEffect(() => {
+    if (!map.current) return;
+    markerLayer.current.clearLayers();
+    routeLayer.current.clearLayers();
+    onInfo(null);
+    onError("");
+    points.forEach((point, index) => {
+      const marker = L.marker([+point.lat, +point.lng], {
+        icon: L.divIcon({
+          className: "trip-number-marker",
+          html: `<span><b>${index + 1}</b></span>`,
+          iconSize: [32, 38],
+          iconAnchor: [16, 36],
+        }),
+      })
+        .addTo(markerLayer.current)
+        .bindTooltip(document.createTextNode(point.place || point.title));
+      marker.on("click", () => onSelect(point));
+    });
+    if (points.length) {
+      map.current.fitBounds(
+        points.map((p) => [+p.lat, +p.lng]),
+        { padding: [46, 46], maxZoom: 14 },
+      );
+    }
+    if (points.length < 2) return;
+    const controller = new AbortController();
+    const coordinates = points.map((p) => `${+p.lng},${+p.lat}`).join(";");
+    fetch(
+      `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson&steps=false`,
+      { signal: controller.signal },
+    )
+      .then((response) => {
+        if (!response.ok) throw Error();
+        return response.json();
+      })
+      .then((result) => {
+        if (result.code !== "Ok" || !result.routes?.[0]) throw Error();
+        const route = result.routes[0];
+        const latLngs = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+        L.polyline(latLngs, {
+          color: "#6c8a6a",
+          weight: 5,
+          opacity: 0.86,
+          lineCap: "round",
+          lineJoin: "round",
+        }).addTo(routeLayer.current);
+        map.current.fitBounds(latLngs, { padding: [46, 46] });
+        onInfo({ distance: route.distance, duration: route.duration });
+      })
+      .catch((error) => {
+        if (error.name === "AbortError") return;
+        L.polyline(
+          points.map((p) => [+p.lat, +p.lng]),
+          { color: "#9a92c4", weight: 3, opacity: 0.65, dashArray: "7 8" },
+        ).addTo(routeLayer.current);
+        onError("도로 경로를 불러오지 못해 장소 사이를 임시 선으로 표시했어요.");
+      });
+    return () => controller.abort();
+  }, [routeKey]);
+  return <div className="trip-route-map" ref={ref} />;
+}
+
 function PlaceMap({ points, onPick, onSelect }) {
   const ref = useRef(),
     map = useRef(),
@@ -2270,6 +2476,7 @@ function Editor({ initial, trips, onClose, onSave, onDelete, onCopy }) {
                         ))}
                       </select>
                     </label>
+                    {v.trip && field("visitOrder", "여행 방문 순서", "number")}
                     <div className="form-grid">
                       <label className="field">
                         나만의 별점
