@@ -2059,6 +2059,152 @@ function TripItinerary({ trip, memories, onOpen, onMove, onAdd, onEditTrip }) {
   );
 }
 
+function PlacePickerMap({ value, onPick }) {
+  const ref = useRef();
+  const map = useRef();
+  const poiLayer = useRef();
+  const selectedLayer = useRef();
+  const pickRef = useRef(onPick);
+  const [pois, setPois] = useState([]);
+  const [category, setCategory] = useState("전체");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  pickRef.current = onPick;
+
+  async function loadNearby() {
+    if (!map.current || loading) return;
+    const center = map.current.getCenter();
+    setLoading(true);
+    setError("");
+    const query = `[out:json][timeout:12];(
+      nwr(around:1800,${center.lat},${center.lng})["amenity"~"^(restaurant|cafe|fast_food)$"]["name"];
+      nwr(around:1800,${center.lat},${center.lng})["tourism"~"^(attraction|museum|gallery|viewpoint)$"]["name"];
+    );out center 90;`;
+    try {
+      const response = await fetch("https://overpass-api.de/api/interpreter", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body: new URLSearchParams({ data: query }),
+      });
+      if (!response.ok) throw Error();
+      const result = await response.json();
+      const next = result.elements
+        .map((element) => ({
+          id: `${element.type}-${element.id}`,
+          place: element.tags?.name,
+          lat: element.lat ?? element.center?.lat,
+          lng: element.lon ?? element.center?.lon,
+          kind: element.tags?.amenity || element.tags?.tourism || "place",
+        }))
+        .filter(
+          (place) =>
+            place.place && Number.isFinite(+place.lat) && Number.isFinite(+place.lng),
+        );
+      setPois(next);
+      if (!next.length) setError("이 주변에는 표시할 장소 정보가 아직 없어요.");
+    } catch {
+      setError("주변 장소를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    const initial =
+      Number.isFinite(+value.lat) && Number.isFinite(+value.lng)
+        ? [+value.lat, +value.lng]
+        : [37.5665, 126.978];
+    map.current = L.map(ref.current, { zoomControl: true }).setView(initial, 14);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
+    }).addTo(map.current);
+    poiLayer.current = L.layerGroup().addTo(map.current);
+    selectedLayer.current = L.layerGroup().addTo(map.current);
+    const timer = setTimeout(() => {
+      map.current?.invalidateSize();
+      loadNearby();
+    }, 180);
+    return () => {
+      clearTimeout(timer);
+      map.current.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!map.current || !selectedLayer.current) return;
+    selectedLayer.current.clearLayers();
+    if (!Number.isFinite(+value.lat) || !Number.isFinite(+value.lng)) return;
+    L.circleMarker([+value.lat, +value.lng], {
+      radius: 11,
+      color: "#fffdf6",
+      weight: 4,
+      fillColor: "#6c8a6a",
+      fillOpacity: 1,
+    })
+      .addTo(selectedLayer.current)
+      .bindTooltip(value.place || "선택한 장소", { permanent: false });
+    map.current.setView([+value.lat, +value.lng], Math.max(map.current.getZoom(), 15));
+  }, [value.lat, value.lng, value.place]);
+
+  useEffect(() => {
+    if (!poiLayer.current) return;
+    poiLayer.current.clearLayers();
+    const visible = pois.filter((place) => {
+      if (category === "식당") return ["restaurant", "fast_food"].includes(place.kind);
+      if (category === "카페") return place.kind === "cafe";
+      if (category === "명소") return ["attraction", "museum", "gallery", "viewpoint"].includes(place.kind);
+      return true;
+    });
+    visible.forEach((place) => {
+      const isFood = ["restaurant", "fast_food"].includes(place.kind);
+      const isCafe = place.kind === "cafe";
+      L.circleMarker([+place.lat, +place.lng], {
+        radius: 8,
+        color: "#fffdf6",
+        weight: 3,
+        fillColor: isCafe ? "#b8835a" : isFood ? "#c0868d" : "#7d9bb5",
+        fillOpacity: 0.96,
+      })
+        .addTo(poiLayer.current)
+        .bindTooltip(document.createTextNode(place.place))
+        .on("click", () => pickRef.current(place));
+    });
+  }, [pois, category]);
+
+  return (
+    <section className="place-picker">
+      <div className="place-picker-head">
+        <div>
+          <b>지도에서 장소 고르기</b>
+          <small>지도를 옮긴 뒤 주변 장소 보기를 눌러보세요.</small>
+        </div>
+        <button type="button" className="secondary" onClick={loadNearby} disabled={loading}>
+          {loading ? "찾는 중…" : "이 지역 주변 장소"}
+        </button>
+      </div>
+      <div className="place-category-pills">
+        {["전체", "식당", "카페", "명소"].map((name) => (
+          <button
+            type="button"
+            key={name}
+            className={category === name ? "active" : ""}
+            onClick={() => setCategory(name)}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+      <div className="place-picker-map" ref={ref} />
+      <div className="place-picker-foot">
+        <span><i className="poi-dot food" /> 식당</span>
+        <span><i className="poi-dot cafe" /> 카페</span>
+        <span><i className="poi-dot sight" /> 명소</span>
+        {value.place && <strong><MapPin size={13} /> {value.place} 선택됨</strong>}
+      </div>
+      {error && <p className="place-picker-error">{error}</p>}
+    </section>
+  );
+}
+
 function TripRouteMap({ points, onSelect, onInfo, onError }) {
   const ref = useRef();
   const map = useRef();
@@ -2292,18 +2438,19 @@ function Editor({ initial, trips, onClose, onSave, onDelete, onCopy }) {
             if (v.type === "bookmark" && !/^https?:\/\//.test(v.url || ""))
               return setErr("https://로 시작하는 링크를 입력해 주세요.");
             if (
-              v.type === "place" &&
-              (!v.place?.trim() ||
-                v.lat === undefined ||
-                v.lng === undefined ||
-                v.lat === "" ||
-                v.lng === "" ||
-                !Number.isFinite(+v.lat) ||
-                Math.abs(+v.lat) > 90 ||
-                !Number.isFinite(+v.lng) ||
-                Math.abs(+v.lng) > 180)
+              ["record", "place"].includes(v.type) &&
+              ((v.type === "place" && !v.place?.trim()) ||
+                (v.place?.trim() &&
+                  (v.lat === undefined ||
+                    v.lng === undefined ||
+                    v.lat === "" ||
+                    v.lng === "" ||
+                    !Number.isFinite(+v.lat) ||
+                    Math.abs(+v.lat) > 90 ||
+                    !Number.isFinite(+v.lng) ||
+                    Math.abs(+v.lng) > 180)))
             )
-              return setErr("장소명과 올바른 좌표를 지정해 주세요.");
+              return setErr("검색 결과나 지도에서 장소를 선택해 주세요.");
             if (v.type === "trip" && v.endDate < v.date)
               return setErr("여행 종료일을 시작일 이후로 설정해 주세요.");
             onSave({ ...v, title: v.title.trim() });
@@ -2458,10 +2605,12 @@ function Editor({ initial, trips, onClose, onSave, onDelete, onCopy }) {
                 ))}
                 {["record", "place"].includes(v.type) && (
                   <>
-                    <div className="form-grid">
-                      {field("lat", "위도", "number")}
-                      {field("lng", "경도", "number")}
-                    </div>
+                    <PlacePickerMap
+                      value={v}
+                      onPick={(place) =>
+                        setV((current) => ({ ...current, ...place }))
+                      }
+                    />
                     <label className="field">
                       여행에 담기 (선택)
                       <select

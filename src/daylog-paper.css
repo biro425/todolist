@@ -397,3 +397,29 @@ select{min-height:44px;border:1px solid var(--line);border-radius:var(--r-sm);ba
   .trip-stop-main{grid-template-columns:60px minmax(0,1fr);gap:9px;padding:6px}
   .trip-stop-main>img,.trip-stop-photo{width:60px;height:60px}
 }
+
+/* 장소 선택 지도 — 좌표 대신 식당·카페·명소를 직접 고른다. */
+.place-picker{overflow:hidden;margin-top:4px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+.place-picker-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 14px;border-bottom:1px solid var(--line);background:var(--paper-deep)}
+.place-picker-head b,.place-picker-head small{display:block}
+.place-picker-head b{font-size:13px;font-weight:500;color:var(--ink)}
+.place-picker-head small{margin-top:3px;font-size:10.5px;color:var(--ink-3)}
+.place-picker-head .secondary{min-height:36px;padding-block:6px;font-size:11.5px}
+.place-category-pills{display:flex;gap:6px;padding:10px 12px;background:var(--paper)}
+.place-category-pills button{min-height:32px;padding:5px 12px;border:1px solid var(--line);border-radius:18px;background:var(--paper);color:var(--ink-3);font-size:11.5px;cursor:pointer}
+.place-category-pills button:hover{border-color:var(--line-strong)}
+.place-category-pills button.active{border-color:var(--sage-700);background:#e2eadf;color:var(--sage-800)}
+.place-picker-map{height:330px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#efeadf}
+.place-picker-foot{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:9px 12px;font-size:10.5px;color:var(--ink-3)}
+.place-picker-foot span,.place-picker-foot strong{display:inline-flex;align-items:center;gap:5px}
+.place-picker-foot strong{margin-left:auto;color:var(--sage-800);font-weight:500}
+.poi-dot{display:inline-block;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--paper)}
+.poi-dot.food{background:var(--rose-700)}.poi-dot.cafe{background:#b8835a}.poi-dot.sight{background:var(--blue-700)}
+.place-picker-error{margin:0;padding:8px 12px;border-top:1px solid var(--line);background:#fdf6f6;color:var(--rose-700);font-size:11px}
+
+@media(max-width:650px){
+  .place-picker-head{align-items:flex-start;flex-direction:column}
+  .place-picker-head .secondary{width:100%}
+  .place-picker-map{height:300px}
+  .place-picker-foot strong{width:100%;margin-left:0}
+}
