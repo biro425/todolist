@@ -296,6 +296,7 @@ function App() {
     [page, setPage] = useState("home"),
     [query, setQuery] = useState(""),
     [modal, setModal] = useState(null),
+    [memoryPreview, setMemoryPreview] = useState(null),
     [toast, setToast] = useState(""),
     [selected, setSelected] = useState(TODAY),
     [month, setMonth] = useState(new Date()),
@@ -346,7 +347,10 @@ function App() {
   }, [data.city]);
   useEffect(() => {
     const fn = (e) => {
-      if (e.key === "Escape") setModal(null);
+      if (e.key === "Escape") {
+        setModal(null);
+        setMemoryPreview(null);
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         document.querySelector("#global-search")?.focus();
@@ -458,7 +462,7 @@ function App() {
                 : page === "records"
                   ? "record"
                   : page === "places"
-                    ? "place"
+                    ? "record"
                     : page === "bookmarks"
                       ? "bookmark"
                       : "event",
@@ -656,20 +660,20 @@ function App() {
     );
   }
   const RecordCard = ({ i }) => (
-    <button className="record-tile" onClick={() => setModal(i)}>
+    <button className="record-tile" onClick={() => setMemoryPreview(i)}>
       {i.photo ? (
         <img src={i.photo} alt={i.title} />
       ) : (
         <div
           className={
-            "record-cover " + (i.type === "place" ? "place-cover" : "")
+            "record-cover " + (i.place ? "place-cover" : "")
           }
         >
           <span>
-            {i.type === "place" ? <MapPin size={29} /> : <BookOpen size={29} />}
+            {i.place ? <MapPin size={29} /> : <BookOpen size={29} />}
           </span>
           <small>
-            {i.type === "place" ? "A PLACE TO REMEMBER" : "A LITTLE MOMENT"}
+            {i.place ? "A PLACE TO REMEMBER" : "A LITTLE MOMENT"}
           </small>
         </div>
       )}
@@ -817,8 +821,8 @@ function App() {
                   <h1>오늘의 이야기를<br />한 줄씩 적어봐요.</h1>
                   <p>해야 할 일도, 마음에 머문 순간도<br />내 공책에 편하게 적어두세요.</p>
                   <div className="hero-actions">
-                    <button className="hero-primary" onClick={() => add("record")}><BookOpen size={16}/> 오늘 기록하기</button>
-                    <button className="hero-ghost" onClick={() => add("place")}><MapPin size={16}/> 장소 남기기</button>
+                    <button className="hero-primary" onClick={() => add("record")}><BookOpen size={16}/> 추억 기록하기</button>
+                    <button className="hero-ghost" onClick={() => setPage("records")}><MapPin size={16}/> 지난 추억 보기</button>
                   </div>
                 </div>
                 <div className="hero-weather">
@@ -830,8 +834,8 @@ function App() {
               </section>
 
               <div className="home-shortcuts">
-                {[["event", CalendarDays, "일정", "시간을 약속해요"],["task", CheckCheck, "할 일", "가볍게 시작해요"],["record", BookOpen, "기록", "마음을 적어봐요"],["place", MapPin, "장소", "발자국을 남겨요"]].map(([type, Icon, label, sub]) => (
-                  <button key={type} onClick={() => add(type)}><span className={'shortcut-icon '+type}><Icon size={18}/></span><span><b>{label}</b><small>{sub}</small></span><ArrowUpRight size={14}/></button>
+                {[["event", CalendarDays, "일정", "시간을 약속해요", () => add("event")],["task", CheckCheck, "할 일", "가볍게 시작해요", () => add("task")],["record", BookOpen, "추억 기록", "장소와 마음을 함께", () => add("record")],["trip", Plane, "여행 모아보기", "발자국을 둘러봐요", () => setPage("places")]].map(([type, Icon, label, sub, action]) => (
+                  <button key={type} onClick={action}><span className={'shortcut-icon '+type}><Icon size={18}/></span><span><b>{label}</b><small>{sub}</small></span><ArrowUpRight size={14}/></button>
                 ))}
               </div>
 
@@ -863,7 +867,7 @@ function App() {
                 <section className="home-panel quick-capture">
                   <header className="home-panel-head"><div><span className="panel-index">QUICK NOTE</span><h2>떠오른 말을 적어요</h2></div><span className="capture-mark">✎</span></header>
                   <div className="pills bright-pills">
-                    {[["event","일정"],["task","할 일"],["record","기록"],["bookmark","링크"],["place","장소"]].map(([t,l]) => <button key={t} className={quickType===t?"selected-pill":""} onClick={() => setQuickType(t)}>{l}</button>)}
+                    {[["event","일정"],["task","할 일"],["record","추억"],["bookmark","링크"]].map(([t,l]) => <button key={t} className={quickType===t?"selected-pill":""} onClick={() => setQuickType(t)}>{l}</button>)}
                   </div>
                   <textarea aria-label="빠른 입력" placeholder="‘내일 오후 3시 회의’처럼 편하게 적어보세요" value={quick} onChange={e => setQuick(e.target.value)}/>
                   <div className="capture-bottom"><span>날짜와 시간을 알아서 정리해요</span><button disabled={!quick.trim()} onClick={() => {add(quickType, parseQuick(quick));setQuick("")}}><ArrowUpRight size={17}/></button></div>
@@ -877,17 +881,17 @@ function App() {
                     <BookOpen size={30}/><span className="photo-label">RECENT MEMORY</span>
                   </div>
                   <div className="memory-copy">
-                    {items.filter(i => ["record","place"].includes(i.type)).slice(-1).map(i => <React.Fragment key={i.id}><span>{fmt(i.date)} {i.place && `· ${i.place}`}</span><h2>{i.title}</h2><p>{i.note || "이 순간의 이야기를 조금 더 들려주세요."}</p><button onClick={() => setModal(i)}>기록 펼쳐보기 <ArrowUpRight size={14}/></button></React.Fragment>)}
+                    {items.filter(i => ["record","place"].includes(i.type)).slice(-1).map(i => <React.Fragment key={i.id}><span>{fmt(i.date)} {i.place && `· ${i.place}`}</span><h2>{i.title}</h2><p>{i.note || "이 순간의 이야기를 조금 더 들려주세요."}</p><button onClick={() => setMemoryPreview(i)}>추억 펼쳐보기 <ArrowUpRight size={14}/></button></React.Fragment>)}
                     {!items.some(i => ["record","place"].includes(i.type)) && <><span>FIRST MEMORY</span><h2>첫 이야기를 남겨볼까요?</h2><p>오늘 마음에 머문 순간을 한 줄로 적어보세요.</p><button onClick={() => add("record")}>기록 시작하기 <ArrowUpRight size={14}/></button></>}
                   </div>
                 </section>
 
                 <section className="home-panel places-glance">
                   <header className="home-panel-head"><div><span className="panel-index">MY MAP</span><h2>쌓여가는 발자국</h2></div><button className="soft-link" onClick={() => setPage("places")}>지도 보기 <ArrowUpRight size={14}/></button></header>
-                  <div className="places-number"><b>{data.items.filter(i=>i.type==="place").length}</b><span>곳의 기억</span></div>
-                  <div className="places-dots">{data.items.filter(i=>i.type==="place").slice(0,5).map((i,n)=><button key={i.id} style={{left:`${14+n*17}%`,top:`${30+(n%2)*27}%`}} aria-label={i.title} onClick={()=>setModal(i)}><MapPin size={14}/></button>)}</div>
+                  <div className="places-number"><b>{data.items.filter(i=>["record","place"].includes(i.type)&&i.place).length}</b><span>곳의 기억</span></div>
+                  <div className="places-dots">{data.items.filter(i=>["record","place"].includes(i.type)&&i.place).slice(0,5).map((i,n)=><button key={i.id} style={{left:`${14+n*17}%`,top:`${30+(n%2)*27}%`}} aria-label={i.title} onClick={()=>setMemoryPreview(i)}><MapPin size={14}/></button>)}</div>
                   <p>멀리 떠난 여행도, 집 앞의 작은 발견도<br/>모두 나만의 지도가 됩니다.</p>
-                  <button className="inline-add" onClick={() => add("place")}><Plus size={15}/> 새로운 장소</button>
+                  <button className="inline-add" onClick={() => add("record")}><Plus size={15}/> 장소가 담긴 추억</button>
                 </section>
               </div>
 
@@ -1444,7 +1448,7 @@ function App() {
               />
               <div className="view-toolbar">
                 <div className="pills">
-                  {["전체", "일상", "장소"].map((v) => (
+                  {["전체", "일상", "장소·여행"].map((v) => (
                     <button
                       key={v}
                       className={recordView === v ? "selected-pill" : ""}
@@ -1460,9 +1464,9 @@ function App() {
                 {items
                   .filter((i) =>
                     recordView === "일상"
-                      ? i.type === "record"
-                      : recordView === "장소"
-                        ? i.type === "place"
+                      ? i.type === "record" && !i.place
+                      : recordView === "장소·여행"
+                        ? ["record", "place"].includes(i.type) && !!i.place
                         : ["record", "place"].includes(i.type),
                   )
                   .sort((a, b) => b.date.localeCompare(a.date))
@@ -1527,14 +1531,16 @@ function App() {
                   <PlaceMap
                     points={items.filter(
                       (i) =>
-                        i.type === "place" &&
+                        ["record", "place"].includes(i.type) &&
+                        Number.isFinite(+i.lat) &&
+                        Number.isFinite(+i.lng) &&
                         (!tripFilter ||
                           (tripFilter === "favorite"
                             ? i.favorite
                             : i.trip === tripFilter)),
                     )}
-                    onSelect={setModal}
-                    onPick={(p) => add("place", p)}
+                    onSelect={setMemoryPreview}
+                    onPick={(p) => add("record", p)}
                   />
                   <div className="map-caption">
                     <MapPin size={14} /> 지도를 클릭해 새로운 장소를
@@ -1545,7 +1551,8 @@ function App() {
                   {items
                     .filter(
                       (i) =>
-                        i.type === "place" &&
+                        ["record", "place"].includes(i.type) &&
+                        !!i.place &&
                         (!tripFilter ||
                           (tripFilter === "favorite"
                             ? i.favorite
@@ -1554,8 +1561,8 @@ function App() {
                     .map((i) => (
                       <RecordCard key={i.id} i={i} />
                     ))}
-                  {!items.some((i) => i.type === "place") && (
-                    <Empty text="첫 번째 발자국을 남겨볼까요?" type="place" />
+                  {!items.some((i) => ["record", "place"].includes(i.type) && i.place) && (
+                    <Empty text="첫 번째 발자국을 남겨볼까요?" type="record" />
                   )}
                 </div>
               </div>
@@ -1821,6 +1828,17 @@ function App() {
           {toast}
         </div>
       )}
+      {memoryPreview && (
+        <MemoryViewer
+          memory={memoryPreview}
+          trip={data.trips.find((t) => t.id === memoryPreview.trip)}
+          onClose={() => setMemoryPreview(null)}
+          onEdit={() => {
+            setMemoryPreview(null);
+            setModal(memoryPreview);
+          }}
+        />
+      )}
       {modal && (
         <Editor
           key={modal.id || modal.type}
@@ -1859,6 +1877,63 @@ function App() {
     </div>
   );
 }
+
+function MemoryViewer({ memory, trip, onClose, onEdit }) {
+  return (
+    <div
+      className="memory-viewer-backdrop"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <article
+        className="memory-viewer"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${memory.title} 추억 보기`}
+      >
+        <button className="memory-viewer-close" onClick={onClose} aria-label="닫기">
+          <X size={20} />
+        </button>
+        <div className={`memory-viewer-visual ${memory.photo ? "has-photo" : ""}`}>
+          {memory.photo ? (
+            <img src={memory.photo} alt="" />
+          ) : (
+            <div className="memory-viewer-placeholder">
+              <span className="memory-viewer-orbit one" />
+              <span className="memory-viewer-orbit two" />
+              {memory.place ? <MapPin size={36} /> : <BookOpen size={36} />}
+              <small>{memory.place ? "A PLACE TO REMEMBER" : "A LITTLE MOMENT"}</small>
+            </div>
+          )}
+          <span className="memory-viewer-page">memory.<br />{memory.date?.slice(5).replace("-", ".")}</span>
+        </div>
+        <div className="memory-viewer-story">
+          <div className="memory-viewer-kicker">
+            <span>{fmt(memory.date)}</span>
+            {memory.mood && <span>오늘의 마음 · {memory.mood}</span>}
+          </div>
+          <h2>{memory.title}</h2>
+          <div className="memory-viewer-meta">
+            {memory.place && <span><MapPin size={14} /> {memory.place}</span>}
+            {trip && <span><Plane size={14} /> {trip.title}</span>}
+            {memory.companion && <span>함께 · {memory.companion}</span>}
+          </div>
+          {memory.rating && <div className="memory-viewer-rating" aria-label={`${memory.rating}점`}>{"★".repeat(Number(memory.rating))}<span>{"★".repeat(Math.max(0, 5 - Number(memory.rating)))}</span></div>}
+          <p className="memory-viewer-note">
+            {memory.note || "이날의 이야기는 아직 여백으로 남아 있어요."}
+          </p>
+          <div className="memory-viewer-foot">
+            <div>
+              {memory.tag && <span className="tag">#{memory.tag}</span>}
+              {memory.favorite && <span className="memory-favorite"><Heart size={13} fill="currentColor" /> 다시 가고 싶은 곳</span>}
+            </div>
+            <button className="memory-edit" onClick={onEdit}>이 기록 수정하기</button>
+          </div>
+        </div>
+      </article>
+    </div>
+  );
+}
+
 function PlaceMap({ points, onPick, onSelect }) {
   const ref = useRef(),
     map = useRef(),
@@ -1935,8 +2010,8 @@ function Editor({ initial, trips, onClose, onSave, onDelete, onCopy }) {
   const names = {
     event: "일정",
     task: "할 일",
-    record: "일상 기록",
-    place: "장소 기록",
+    record: "추억 기록",
+    place: "추억 기록",
     bookmark: "북마크",
     trip: "여행",
   };
@@ -2034,8 +2109,8 @@ function Editor({ initial, trips, onClose, onSave, onDelete, onCopy }) {
               className="title-input"
               aria-label="제목"
               placeholder={
-                v.type === "place"
-                  ? "이 장소의 어떤 순간을 기억할까요?"
+                ["record", "place"].includes(v.type)
+                  ? "어떤 순간을 기억할까요?"
                   : "어떤 하루를 남겨볼까요?"
               }
               value={v.title}
@@ -2109,10 +2184,10 @@ function Editor({ initial, trips, onClose, onSave, onDelete, onCopy }) {
               </>
             )}
             {v.type === "bookmark" && field("url", "링크 URL", "url")}
-            {["event", "place"].includes(v.type) && (
+            {["event", "record", "place"].includes(v.type) && (
               <>
                 <label className="field">
-                  장소
+                  {["record", "place"].includes(v.type) ? "장소 (선택)" : "장소"}
                   <div className="inline">
                     <input
                       placeholder="장소 또는 주소 검색"
@@ -2127,7 +2202,7 @@ function Editor({ initial, trips, onClose, onSave, onDelete, onCopy }) {
                     >
                       {finding ? "검색 중…" : "검색"}
                     </button>
-                    {v.type === "place" && (
+                    {["record", "place"].includes(v.type) && (
                       <button
                         type="button"
                         className="icon"
@@ -2175,14 +2250,14 @@ function Editor({ initial, trips, onClose, onSave, onDelete, onCopy }) {
                     {p.display_name}
                   </button>
                 ))}
-                {v.type === "place" && (
+                {["record", "place"].includes(v.type) && (
                   <>
                     <div className="form-grid">
                       {field("lat", "위도", "number")}
                       {field("lng", "경도", "number")}
                     </div>
                     <label className="field">
-                      여행에 담기
+                      여행에 담기 (선택)
                       <select
                         value={v.trip || ""}
                         onChange={(e) => change("trip", e.target.value)}
