@@ -364,7 +364,7 @@ function App() {
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
-  const save = (item) => {
+  const save = (item, { keepOpen = false } = {}) => {
     setData((d) => {
       let nextItem = { ...item };
       if (
@@ -405,8 +405,12 @@ function App() {
       }
       return { ...d, items: [...d.items, first, ...extra] };
     });
-    setModal(null);
-    notify("차곡, 저장했어요");
+    if (!keepOpen) setModal(null);
+    notify(
+      keepOpen
+        ? "기록을 저장했어요. 다음 순간도 이어서 남겨보세요."
+        : "차곡, 저장했어요",
+    );
   };
   const toggle = (id) =>
     setData((d) => {
@@ -1575,7 +1579,12 @@ function App() {
                   memories={tripMemories}
                   onOpen={setMemoryPreview}
                   onMove={moveTripMemory}
-                  onAdd={() => add("record", { trip: selectedTrip.id })}
+                  onAdd={() =>
+                    add("record", {
+                      trip: selectedTrip.id,
+                      date: selectedTrip.date || selected,
+                    })
+                  }
                   onEditTrip={() => setModal(selectedTrip)}
                 />
               ) : (
@@ -1628,7 +1637,7 @@ function App() {
                         <Plane size={24} />
                         <h3>{t.title}</h3>
                         <p>{t.date} — {t.endDate}</p>
-                        <span>{items.filter((i) => i.trip === t.id).length}곳의 여정</span>
+                        <span>{items.filter((i) => i.trip === t.id).length}개의 기록</span>
                       </button>
                       <button className="trip-edit" onClick={() => setModal(t)}>여행 정보 수정</button>
                     </section>
@@ -1894,17 +1903,20 @@ function App() {
           initial={modal}
           trips={data.trips}
           onClose={() => setModal(null)}
-          onSave={(v) => {
+          onSave={(v, options = {}) => {
             if (v.type === "trip") {
+              const savedTrip = v.id ? v : { ...v, id: uid() };
               setData((d) => ({
                 ...d,
                 trips: v.id
-                  ? d.trips.map((t) => (t.id === v.id ? v : t))
-                  : [...d.trips, { ...v, id: uid() }],
+                  ? d.trips.map((t) => (t.id === v.id ? savedTrip : t))
+                  : [...d.trips, savedTrip],
               }));
+              setTripFilter(savedTrip.id);
+              setPage("places");
               setModal(null);
               notify("여행을 저장했어요");
-            } else save(v);
+            } else save(v, options);
           }}
           onDelete={(id) => {
             if (modal.type === "trip") {
@@ -1986,24 +1998,35 @@ function MemoryViewer({ memory, trip, onClose, onEdit }) {
 function TripItinerary({ trip, memories, onOpen, onMove, onAdd, onEditTrip }) {
   const [routeInfo, setRouteInfo] = useState(null);
   const [routeError, setRouteError] = useState("");
-  const mapped = memories.filter(
-    (i) => Number.isFinite(+i.lat) && Number.isFinite(+i.lng),
-  );
+  const mapped = memories
+    .map((memory, index) => ({ ...memory, routeNumber: index + 1 }))
+    .filter((i) => Number.isFinite(+i.lat) && Number.isFinite(+i.lng));
+  const photoCount = memories.filter((i) => i.photo).length;
+  const categoryLabel = (memory) => {
+    if (memory.tripCategory) return memory.tripCategory;
+    if (["restaurant", "fast_food"].includes(memory.kind)) return "식당";
+    if (memory.kind === "cafe") return "카페";
+    if (["attraction", "museum", "gallery", "viewpoint"].includes(memory.kind))
+      return "명소";
+    return memory.place ? "장소" : "메모";
+  };
   return (
     <section className="trip-itinerary">
       <header className="trip-itinerary-head">
         <div>
           <span className="panel-index">TRIP ROUTE</span>
           <h2>{trip.title}</h2>
-          <p>{trip.date} — {trip.endDate} · {memories.length}곳의 여정</p>
+          <p>
+            {trip.date} — {trip.endDate} · {memories.length}개의 기록 · {mapped.length}곳 · {photoCount}장의 사진
+          </p>
         </div>
         <div className="trip-itinerary-actions">
           <button className="secondary" onClick={onEditTrip}>여행 정보</button>
-          <button className="primary" onClick={onAdd}><Plus size={15} /> 장소 추가</button>
+          <button className="primary" onClick={onAdd}><Plus size={15} /> 기록 추가</button>
         </div>
       </header>
       <div className="trip-route-summary">
-        <span><Navigation size={15} /> 방문 순서대로 실제 도로를 연결해요</span>
+        <span><Navigation size={15} /> 장소가 있는 기록은 방문 순서대로 실제 도로를 연결해요</span>
         {routeInfo && (
           <strong>
             {(routeInfo.distance / 1000).toFixed(1)}km · 약 {Math.max(1, Math.round(routeInfo.duration / 60))}분
@@ -2035,7 +2058,10 @@ function TripItinerary({ trip, memories, onOpen, onMove, onAdd, onEditTrip }) {
                   <span className="trip-stop-photo"><MapPin size={20} /></span>
                 )}
                 <span className="trip-stop-copy">
-                  <small>{memory.place || "장소 이름을 더해보세요"}</small>
+                  <small>
+                    <span className="trip-entry-kind">{categoryLabel(memory)}</span>
+                    {fmt(memory.date)}{memory.place ? ` · ${memory.place}` : ""}
+                  </small>
                   <b>{memory.title}</b>
                   <em>{memory.note || "이곳의 이야기를 남겨보세요."}</em>
                 </span>
@@ -2049,9 +2075,14 @@ function TripItinerary({ trip, memories, onOpen, onMove, onAdd, onEditTrip }) {
           {!memories.length && (
             <div className="trip-empty">
               <MapPin size={24} />
-              <p>이 여행에 첫 장소를 담아보세요.</p>
-              <button className="secondary" onClick={onAdd}>장소 추가하기</button>
+              <p>이 여행의 첫 순간을 담아보세요.</p>
+              <button className="secondary" onClick={onAdd}>첫 기록 남기기</button>
             </div>
+          )}
+          {!!memories.length && (
+            <button className="trip-add-more" onClick={onAdd}>
+              <Plus size={15} /> 이 여행에 기록 하나 더 추가하기
+            </button>
           )}
         </div>
       </div>
@@ -2233,7 +2264,7 @@ function TripRouteMap({ points, onSelect, onInfo, onError }) {
       const marker = L.marker([+point.lat, +point.lng], {
         icon: L.divIcon({
           className: "trip-number-marker",
-          html: `<span><b>${index + 1}</b></span>`,
+          html: `<span><b>${point.routeNumber || index + 1}</b></span>`,
           iconSize: [32, 38],
           iconAnchor: [16, 36],
         }),
@@ -2453,7 +2484,21 @@ function Editor({ initial, trips, onClose, onSave, onDelete, onCopy }) {
               return setErr("검색 결과나 지도에서 장소를 선택해 주세요.");
             if (v.type === "trip" && v.endDate < v.date)
               return setErr("여행 종료일을 시작일 이후로 설정해 주세요.");
-            onSave({ ...v, title: v.title.trim() });
+            const keepAdding =
+              e.nativeEvent.submitter?.value === "save-and-continue";
+            onSave({ ...v, title: v.title.trim() }, { keepOpen: keepAdding });
+            if (keepAdding) {
+              setV({
+                type: "record",
+                title: "",
+                date: v.date,
+                trip: v.trip,
+                color: v.color || colors[0],
+                mood: v.mood || "편안해요",
+                companion: v.companion || "",
+              });
+              setPlaces([]);
+            }
           }}
         >
           <div className="modal-body">
@@ -2625,7 +2670,22 @@ function Editor({ initial, trips, onClose, onSave, onDelete, onCopy }) {
                         ))}
                       </select>
                     </label>
-                    {v.trip && field("visitOrder", "여행 방문 순서", "number")}
+                    {v.trip && (
+                      <div className="form-grid">
+                        <label className="field">
+                          여행 기록 종류
+                          <select
+                            value={v.tripCategory || "장소"}
+                            onChange={(e) => change("tripCategory", e.target.value)}
+                          >
+                            {["장소", "명소", "식당", "카페", "숙소", "이동", "메모"].map((category) => (
+                              <option key={category}>{category}</option>
+                            ))}
+                          </select>
+                        </label>
+                        {field("visitOrder", "방문 / 기록 순서", "number")}
+                      </div>
+                    )}
                     <div className="form-grid">
                       <label className="field">
                         나만의 별점
@@ -2770,6 +2830,16 @@ function Editor({ initial, trips, onClose, onSave, onDelete, onCopy }) {
                 <button type="button" className="secondary" onClick={onClose}>
                   취소
                 </button>
+                {!v.id && ["record", "place"].includes(v.type) && v.trip && (
+                  <button
+                    className="secondary save-continue"
+                    type="submit"
+                    value="save-and-continue"
+                  >
+                    <Plus size={15} />
+                    저장 후 하나 더
+                  </button>
+                )}
                 <button className="primary" type="submit">
                   <Check size={16} />
                   저장하기
