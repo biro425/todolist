@@ -273,6 +273,10 @@ select{min-height:44px;border:1px solid var(--line);border-radius:var(--r-sm);ba
 .memory-page-button.prev{left:12px}.memory-page-button.next{right:12px}
 .memory-page-button:hover:not(:disabled){background:#edf2e9;border-color:var(--sage-700)}
 .memory-page-button:disabled{opacity:0;pointer-events:none}
+.memory-page-add{position:fixed;z-index:2003;left:calc(50% + min(500px,44vw));top:50%;display:flex;flex-direction:column;align-items:center;gap:7px;width:76px;padding:0;border:0;background:transparent;color:#fffdf6;cursor:pointer;transform:translateY(-50%)}
+.memory-page-add>svg{display:grid;box-sizing:content-box;padding:15px;border:1px solid rgba(255,253,246,.72);border-radius:50%;background:var(--sage-800);box-shadow:0 7px 22px rgba(35,42,34,.26);transition:.2s}
+.memory-page-add>span{font-size:10px;letter-spacing:.04em;text-shadow:0 1px 4px rgba(0,0,0,.32)}
+.memory-page-add:hover>svg{background:#315f50;transform:rotate(90deg) scale(1.05)}
 .memory-viewer-visual{position:relative;min-height:560px;overflow:hidden;background:#eef0e8}
 .memory-viewer-visual.has-photo::after{
   content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(35,31,25,.35),transparent 38%);pointer-events:none;
@@ -335,6 +339,7 @@ select{min-height:44px;border:1px solid var(--line);border-radius:var(--r-sm);ba
 .trip-cover-places span{display:inline-flex;align-items:center;gap:4px;padding:6px 9px;border:1px solid var(--line);border-radius:16px;background:var(--paper-deep);font-size:10px;color:var(--ink-2)}
 .trip-cover-places small{color:var(--ink-3)}
 .trip-cover-foot .memory-edit{display:inline-flex;align-items:center;gap:5px}
+.trip-cover-foot{justify-content:flex-end}
 .book-next-link{display:inline-flex;align-items:center;gap:4px;border:0;background:transparent;color:var(--sage-800);font-size:12px;font-weight:600;cursor:pointer}
 .book-next-link:hover{text-decoration:underline;text-underline-offset:4px}
 
@@ -359,6 +364,8 @@ select{min-height:44px;border:1px solid var(--line);border-radius:var(--r-sm);ba
   .memory-book-progress{position:fixed;left:22px;right:74px;top:17px}
   .memory-page-button{position:fixed;top:auto;bottom:18px;transform:none}
   .memory-page-button.prev{left:18px}.memory-page-button.next{right:18px}
+  .memory-page-add{left:auto;right:72px;top:auto;bottom:15px;width:56px;transform:none}
+  .memory-page-add>svg{padding:11px}.memory-page-add>span{display:none}
   .trip-cover-visual{min-height:42vh;height:42vh;padding:38px 28px}
   .trip-cover-visual>h2{font-size:28px}
   .trip-cover-story{min-height:58vh;padding-top:46px}
@@ -424,7 +431,9 @@ select{min-height:44px;border:1px solid var(--line);border-radius:var(--r-sm);ba
 .trip-open h3{margin:10px 0 5px;font-family:'Gowun Batang',serif}
 .trip-open p,.trip-open span{display:block;margin:0;font-size:11px;color:var(--ink-3)}
 .trip-card-actions{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line);background:var(--paper-deep)}
+.trip-card-actions.single{grid-template-columns:1fr}
 .trip-card-actions button{display:flex;align-items:center;justify-content:center;gap:5px;min-height:40px;padding:9px;border:0;background:transparent;font-size:11px;cursor:pointer}
+.trip-card-actions.single button+button{border-left:0}
 .trip-card-actions button+button{border-left:1px solid var(--line)}
 .trip-add-record{color:var(--sage-800);font-weight:600}
 .trip-edit{color:var(--ink-3)}

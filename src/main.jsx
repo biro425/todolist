@@ -58,6 +58,35 @@ const TODAY = dateStr(new Date()),
       weekday: "short",
     });
 const colors = ["#a7c5b5", "#c4b0dd", "#e5bd8b", "#9abbd5", "#de9fa3"];
+const demoTrip = {
+  id: "demo-trip-nihon",
+  type: "trip",
+  title: "일본여행 니혼",
+  date: shift(TODAY, -3),
+  endDate: TODAY,
+  note: "책장을 넘기며 여행 기록을 확인할 수 있도록 만든 임시 여행이에요.",
+  demo: true,
+};
+const demoTripMemories = [
+  {
+    id: "demo-nihon-1", type: "record", trip: demoTrip.id, visitOrder: 1,
+    title: "도톤보리의 밤", place: "도톤보리", lat: 34.66872, lng: 135.5013,
+    date: shift(TODAY, -3), tripCategory: "명소", tag: "임시 예시", color: colors[0],
+    note: "강물 위로 빛나는 간판을 보며 첫날의 밤을 천천히 걸었다.",
+  },
+  {
+    id: "demo-nihon-2", type: "record", trip: demoTrip.id, visitOrder: 2,
+    title: "오사카성의 느린 오후", place: "오사카성", lat: 34.68732, lng: 135.5262,
+    date: shift(TODAY, -2), tripCategory: "명소", tag: "임시 예시", color: colors[2],
+    note: "높은 성벽과 넓은 공원 사이를 걷다가 바람이 좋아 한참 쉬었다.",
+  },
+  {
+    id: "demo-nihon-3", type: "record", trip: demoTrip.id, visitOrder: 3,
+    title: "우메다에서 본 노을", place: "우메다 스카이 빌딩", lat: 34.70529, lng: 135.4906,
+    date: shift(TODAY, -1), tripCategory: "장소", tag: "임시 예시", color: colors[4],
+    note: "도시 위로 해가 내려앉는 시간. 이 여행에서 가장 오래 기억하고 싶은 장면이었다.",
+  },
+];
 const seed = {
   items: [
     {
@@ -147,17 +176,37 @@ const seed = {
       note: "주말에 가볼 장소들을 찾아보기",
       color: colors[2],
     },
+    ...demoTripMemories,
   ],
-  trips: [],
+  trips: [demoTrip],
   shared: false,
   city: "서울",
   onboarding: true,
   hidden: [],
   sample: true,
+  demoBookSeeded: true,
 };
 function load() {
   try {
-    return JSON.parse(localStorage.getItem("daylog.v1")) || seed;
+    const stored = JSON.parse(localStorage.getItem("daylog.v1"));
+    if (!stored) return seed;
+    if (stored.demoBookSeeded) return stored;
+    return {
+      ...stored,
+      items: [
+        ...(stored.items || []),
+        ...demoTripMemories.filter(
+          (demo) => !(stored.items || []).some((item) => item.id === demo.id),
+        ),
+      ],
+      trips: [
+        ...(stored.trips || []),
+        ...(!(stored.trips || []).some((trip) => trip.id === demoTrip.id)
+          ? [demoTrip]
+          : []),
+      ],
+      demoBookSeeded: true,
+    };
   } catch {
     return seed;
   }
@@ -501,25 +550,25 @@ function App() {
       </div>
       <div className="head-actions">
         {children}
-        <button
-          className="primary"
-          onClick={() =>
-            add(
-              page === "tasks"
-                ? "task"
-                : page === "records"
-                  ? "record"
-                  : page === "places"
+        {page !== "places" && (
+          <button
+            className="primary"
+            onClick={() =>
+              add(
+                page === "tasks"
+                  ? "task"
+                  : page === "records"
                     ? "record"
                     : page === "bookmarks"
                       ? "bookmark"
                       : "event",
-            )
-          }
-        >
-          {page === "places" ? <MapPin size={16} /> : <Plus size={16} />}
-          {page === "places" ? "장소 기록 추가" : "새로 추가"}
-        </button>
+              )
+            }
+          >
+            <Plus size={16} />
+            새로 추가
+          </button>
+        )}
       </div>
     </div>
   );
@@ -769,13 +818,16 @@ function App() {
     text = "아직 기록이 없어요",
     type = "record",
     actionLabel = "첫 기록 남기기",
+    hideAction = false,
   }) => (
     <div className="empty">
       <span className="empty-symbol">＋</span>
       <p>{text}</p>
-      <button className="secondary" onClick={() => add(type)}>
-        {actionLabel}
-      </button>
+      {!hideAction && (
+        <button className="secondary" onClick={() => add(type)}>
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
   return (
@@ -1640,7 +1692,7 @@ function App() {
                       <Empty
                         text="첫 번째 발자국을 남겨볼까요?"
                         type="record"
-                        actionLabel="장소 기록 추가"
+                        hideAction
                       />
                     )}
                   </div>
@@ -1656,18 +1708,7 @@ function App() {
                         <p>{t.date} — {t.endDate}</p>
                         <span>{items.filter((i) => i.trip === t.id).length}개의 기록</span>
                       </button>
-                      <div className="trip-card-actions">
-                        <button
-                          className="trip-add-record"
-                          onClick={() =>
-                            add("record", {
-                              trip: t.id,
-                              date: t.date || selected,
-                            })
-                          }
-                        >
-                          <Plus size={13} /> 기록 추가
-                        </button>
+                      <div className="trip-card-actions single">
                         <button className="trip-edit" onClick={() => setModal(t)}>
                           여행 정보
                         </button>
@@ -2063,7 +2104,6 @@ function MemoryViewer({ memory, trip, tripMemories = [], onClose, onEdit, onAdd 
                 {!placeNames.length && <small>아직 담긴 장소가 없어요.</small>}
               </div>
               <div className="memory-viewer-foot trip-cover-foot">
-                <button className="memory-edit" onClick={onAdd}><Plus size={14} /> 이 여행에 기록 추가</button>
                 {!!entries.length && <button className="book-next-link" onClick={() => setPage(1)}>첫 장소 펼쳐보기 <ChevronRight size={16} /></button>}
               </div>
             </div>
@@ -2113,6 +2153,10 @@ function MemoryViewer({ memory, trip, tripMemories = [], onClose, onEdit, onAdd 
           <>
             <button className="memory-page-button prev" disabled={page === 0} onClick={() => setPage((current) => Math.max(0, current - 1))} aria-label="이전 페이지"><ChevronLeft size={20} /></button>
             <button className="memory-page-button next" disabled={page >= totalPages - 1} onClick={() => setPage((current) => Math.min(totalPages - 1, current + 1))} aria-label="다음 페이지"><ChevronRight size={20} /></button>
+            <button className="memory-page-add" onClick={onAdd} aria-label="여행 페이지 추가">
+              <Plus size={24} />
+              <span>페이지 추가</span>
+            </button>
           </>
         )}
       </article>
@@ -2152,7 +2196,9 @@ function TripItinerary({ trip, memories, onOpen, onMove, onAdd, onEditTrip }) {
             </button>
           )}
           <button className="secondary" onClick={onEditTrip}>여행 정보</button>
-          <button className="primary" onClick={onAdd}><Plus size={15} /> 기록 추가</button>
+          {!memories.length && (
+            <button className="primary" onClick={onAdd}><Plus size={15} /> 첫 페이지 추가</button>
+          )}
         </div>
       </header>
       <div className="trip-route-summary">
