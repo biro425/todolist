@@ -309,7 +309,8 @@ function App() {
     [weather, setWeather] = useState(null),
     [weatherError, setWeatherError] = useState(false),
     [navOpen, setNavOpen] = useState(false),
-    [tripFilter, setTripFilter] = useState("");
+    [tripFilter, setTripFilter] = useState(""),
+    [mapFocus, setMapFocus] = useState(null);
   const notify = (t) => {
     setToast(t);
     setTimeout(() => setToast(""), 3200);
@@ -706,8 +707,15 @@ function App() {
       </Card>
     );
   }
-  const RecordCard = ({ i }) => (
-    <button className="record-tile" onClick={() => setMemoryPreview(i)}>
+  const RecordCard = ({ i, onHover }) => (
+    <button
+      className="record-tile"
+      onClick={() => setMemoryPreview(i)}
+      onMouseEnter={() => onHover?.(i)}
+      onMouseLeave={() => onHover?.(null)}
+      onFocus={() => onHover?.(i)}
+      onBlur={() => onHover?.(null)}
+    >
       {i.photo ? (
         <img src={i.photo} alt={i.title} />
       ) : (
@@ -1601,6 +1609,7 @@ function App() {
                               ? i.favorite
                               : i.trip === tripFilter)),
                       )}
+                      focus={mapFocus}
                       onSelect={setMemoryPreview}
                       onPick={(p) => add("record", p)}
                     />
@@ -1621,7 +1630,7 @@ function App() {
                               : i.trip === tripFilter)),
                       )
                       .map((i) => (
-                        <RecordCard key={i.id} i={i} />
+                        <RecordCard key={i.id} i={i} onHover={setMapFocus} />
                       ))}
                     {!items.some((i) => ["record", "place"].includes(i.type) && i.place) && (
                       <Empty text="첫 번째 발자국을 남겨볼까요?" type="record" />
@@ -1888,12 +1897,34 @@ function App() {
       )}
       {memoryPreview && (
         <MemoryViewer
+          key={memoryPreview.id}
           memory={memoryPreview}
           trip={data.trips.find((t) => t.id === memoryPreview.trip)}
+          tripMemories={data.items
+            .filter(
+              (item) =>
+                ["record", "place"].includes(item.type) &&
+                memoryPreview.trip &&
+                item.trip === memoryPreview.trip,
+            )
+            .sort(
+              (a, b) =>
+                (+a.visitOrder || Number.MAX_SAFE_INTEGER) -
+                  (+b.visitOrder || Number.MAX_SAFE_INTEGER) ||
+                a.date.localeCompare(b.date),
+            )}
           onClose={() => setMemoryPreview(null)}
-          onEdit={() => {
+          onEdit={(target = memoryPreview) => {
             setMemoryPreview(null);
-            setModal(memoryPreview);
+            setModal(target);
+          }}
+          onAdd={() => {
+            const trip = data.trips.find((t) => t.id === memoryPreview.trip);
+            setMemoryPreview(null);
+            add("record", {
+              trip: memoryPreview.trip,
+              date: trip?.date || memoryPreview.date || selected,
+            });
           }}
         />
       )}
@@ -1939,57 +1970,128 @@ function App() {
   );
 }
 
-function MemoryViewer({ memory, trip, onClose, onEdit }) {
+function MemoryViewer({ memory, trip, tripMemories = [], onClose, onEdit, onAdd }) {
+  const entries = trip ? tripMemories : [memory];
+  const [page, setPage] = useState(trip ? 0 : 1);
+  const activeMemory = trip ? entries[page - 1] : memory;
+  const totalPages = trip ? entries.length + 1 : 1;
+  const placeNames = [...new Set(entries.map((item) => item.place).filter(Boolean))];
+  useEffect(() => {
+    const turnPage = (event) => {
+      if (!trip || !["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+      setPage((current) =>
+        event.key === "ArrowRight"
+          ? Math.min(totalPages - 1, current + 1)
+          : Math.max(0, current - 1),
+      );
+    };
+    window.addEventListener("keydown", turnPage);
+    return () => window.removeEventListener("keydown", turnPage);
+  }, [trip, totalPages]);
   return (
     <div
       className="memory-viewer-backdrop"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <article
-        className="memory-viewer"
+        className={`memory-viewer ${trip ? "is-trip-book" : ""}`}
         role="dialog"
         aria-modal="true"
-        aria-label={`${memory.title} 추억 보기`}
+        aria-label={`${trip?.title || memory.title} 추억책 보기`}
       >
         <button className="memory-viewer-close" onClick={onClose} aria-label="닫기">
           <X size={20} />
         </button>
-        <div className={`memory-viewer-visual ${memory.photo ? "has-photo" : ""}`}>
-          {memory.photo ? (
-            <img src={memory.photo} alt="" />
-          ) : (
-            <div className="memory-viewer-placeholder">
-              <span className="memory-viewer-orbit one" />
-              <span className="memory-viewer-orbit two" />
-              {memory.place ? <MapPin size={36} /> : <BookOpen size={36} />}
-              <small>{memory.place ? "A PLACE TO REMEMBER" : "A LITTLE MOMENT"}</small>
+        {trip && (
+          <div className="memory-book-progress" aria-label={`${page + 1} / ${totalPages} 페이지`}>
+            {Array.from({ length: totalPages }, (_, index) => (
+              <span key={index} className={page === index ? "active" : ""} />
+            ))}
+            <b>{page + 1} / {totalPages}</b>
+          </div>
+        )}
+        {trip && page === 0 ? (
+          <React.Fragment key="trip-cover">
+            <div className="memory-viewer-visual trip-cover-visual memory-page-turn">
+              <span className="trip-cover-orbit one" />
+              <span className="trip-cover-orbit two" />
+              <div className="trip-cover-emblem"><Plane size={34} /></div>
+              <small>MY TRAVEL NOTE</small>
+              <h2>{trip.title}</h2>
+              <p>{trip.date} — {trip.endDate}</p>
+              <span className="memory-viewer-page">journey.<br />{trip.date?.slice(5).replace("-", ".")}</span>
             </div>
-          )}
-          <span className="memory-viewer-page">memory.<br />{memory.date?.slice(5).replace("-", ".")}</span>
-        </div>
-        <div className="memory-viewer-story">
-          <div className="memory-viewer-kicker">
-            <span>{fmt(memory.date)}</span>
-            {memory.mood && <span>오늘의 마음 · {memory.mood}</span>}
-          </div>
-          <h2>{memory.title}</h2>
-          <div className="memory-viewer-meta">
-            {memory.place && <span><MapPin size={14} /> {memory.place}</span>}
-            {trip && <span><Plane size={14} /> {trip.title}</span>}
-            {memory.companion && <span>함께 · {memory.companion}</span>}
-          </div>
-          {memory.rating && <div className="memory-viewer-rating" aria-label={`${memory.rating}점`}>{"★".repeat(Number(memory.rating))}<span>{"★".repeat(Math.max(0, 5 - Number(memory.rating)))}</span></div>}
-          <p className="memory-viewer-note">
-            {memory.note || "이날의 이야기는 아직 여백으로 남아 있어요."}
-          </p>
-          <div className="memory-viewer-foot">
-            <div>
-              {memory.tag && <span className="tag">#{memory.tag}</span>}
-              {memory.favorite && <span className="memory-favorite"><Heart size={13} fill="currentColor" /> 다시 가고 싶은 곳</span>}
+            <div className="memory-viewer-story trip-cover-story memory-page-turn">
+              <div className="memory-viewer-kicker">
+                <span>TRIP OVERVIEW</span>
+                <span>{entries.length}개의 기록</span>
+              </div>
+              <h2>{trip.title}</h2>
+              <p className="trip-cover-intro">
+                {trip.note || "이 여행에서 만난 장소와 순간들을 한 권의 기록으로 모았어요."}
+              </p>
+              <div className="trip-cover-stats">
+                <span><b>{entries.length}</b>기록</span>
+                <span><b>{placeNames.length}</b>장소</span>
+                <span><b>{entries.filter((item) => item.photo).length}</b>사진</span>
+              </div>
+              <div className="trip-cover-places">
+                {placeNames.slice(0, 8).map((place) => <span key={place}><MapPin size={12} /> {place}</span>)}
+                {!placeNames.length && <small>아직 담긴 장소가 없어요.</small>}
+              </div>
+              <div className="memory-viewer-foot trip-cover-foot">
+                <button className="memory-edit" onClick={onAdd}><Plus size={14} /> 이 여행에 기록 추가</button>
+                {!!entries.length && <button className="book-next-link" onClick={() => setPage(1)}>첫 장소 펼쳐보기 <ChevronRight size={16} /></button>}
+              </div>
             </div>
-            <button className="memory-edit" onClick={onEdit}>이 기록 수정하기</button>
-          </div>
-        </div>
+          </React.Fragment>
+        ) : activeMemory ? (
+          <React.Fragment key={activeMemory.id}>
+            <div className={`memory-viewer-visual memory-page-turn ${activeMemory.photo ? "has-photo" : ""}`}>
+              {activeMemory.photo ? (
+                <img src={activeMemory.photo} alt="" />
+              ) : (
+                <div className="memory-viewer-placeholder">
+                  <span className="memory-viewer-orbit one" />
+                  <span className="memory-viewer-orbit two" />
+                  {activeMemory.place ? <MapPin size={36} /> : <BookOpen size={36} />}
+                  <small>{activeMemory.place ? "A PLACE TO REMEMBER" : "A LITTLE MOMENT"}</small>
+                </div>
+              )}
+              <span className="memory-viewer-page">memory.<br />{activeMemory.date?.slice(5).replace("-", ".")}</span>
+            </div>
+            <div className="memory-viewer-story memory-page-turn">
+              <div className="memory-viewer-kicker">
+                <span>{fmt(activeMemory.date)}</span>
+                {trip && <span>{page}번째 기록</span>}
+                {activeMemory.mood && <span>오늘의 마음 · {activeMemory.mood}</span>}
+              </div>
+              <h2>{activeMemory.title}</h2>
+              <div className="memory-viewer-meta">
+                {activeMemory.place && <span><MapPin size={14} /> {activeMemory.place}</span>}
+                {trip && <span><Plane size={14} /> {trip.title}</span>}
+                {activeMemory.companion && <span>함께 · {activeMemory.companion}</span>}
+              </div>
+              {activeMemory.rating && <div className="memory-viewer-rating" aria-label={`${activeMemory.rating}점`}>{"★".repeat(Number(activeMemory.rating))}<span>{"★".repeat(Math.max(0, 5 - Number(activeMemory.rating)))}</span></div>}
+              <p className="memory-viewer-note">
+                {activeMemory.note || "이날의 이야기는 아직 여백으로 남아 있어요."}
+              </p>
+              <div className="memory-viewer-foot">
+                <div>
+                  {activeMemory.tag && <span className="tag">#{activeMemory.tag}</span>}
+                  {activeMemory.favorite && <span className="memory-favorite"><Heart size={13} fill="currentColor" /> 다시 가고 싶은 곳</span>}
+                </div>
+                <button className="memory-edit" onClick={() => onEdit(activeMemory)}>이 기록 수정하기</button>
+              </div>
+            </div>
+          </React.Fragment>
+        ) : null}
+        {trip && (
+          <>
+            <button className="memory-page-button prev" disabled={page === 0} onClick={() => setPage((current) => Math.max(0, current - 1))} aria-label="이전 페이지"><ChevronLeft size={20} /></button>
+            <button className="memory-page-button next" disabled={page >= totalPages - 1} onClick={() => setPage((current) => Math.min(totalPages - 1, current + 1))} aria-label="다음 페이지"><ChevronRight size={20} /></button>
+          </>
+        )}
       </article>
     </div>
   );
@@ -2021,6 +2123,11 @@ function TripItinerary({ trip, memories, onOpen, onMove, onAdd, onEditTrip }) {
           </p>
         </div>
         <div className="trip-itinerary-actions">
+          {!!memories.length && (
+            <button className="secondary" onClick={() => onOpen(memories[0])}>
+              <BookOpen size={15} /> 여행책 보기
+            </button>
+          )}
           <button className="secondary" onClick={onEditTrip}>여행 정보</button>
           <button className="primary" onClick={onAdd}><Plus size={15} /> 기록 추가</button>
         </div>
@@ -2317,10 +2424,11 @@ function TripRouteMap({ points, onSelect, onInfo, onError }) {
   return <div className="trip-route-map" ref={ref} />;
 }
 
-function PlaceMap({ points, onPick, onSelect }) {
+function PlaceMap({ points, focus, onPick, onSelect }) {
   const ref = useRef(),
     map = useRef(),
-    layer = useRef();
+    layer = useRef(),
+    markers = useRef(new globalThis.Map());
   const pickRef = useRef(onPick);
   pickRef.current = onPick;
   useEffect(() => {
@@ -2342,14 +2450,15 @@ function PlaceMap({ points, onPick, onSelect }) {
   }, []);
   useEffect(() => {
     layer.current.clearLayers();
+    markers.current.clear();
     const valid = points.filter(
       (p) =>
         Number.isFinite(+p.lat) &&
         Number.isFinite(+p.lng) &&
         p.lat !== undefined,
     );
-    valid.forEach((p) =>
-      L.circleMarker([+p.lat, +p.lng], {
+    valid.forEach((p) => {
+      const marker = L.circleMarker([+p.lat, +p.lng], {
         radius: 10,
         color: "#d7e9db",
         weight: 3,
@@ -2361,14 +2470,38 @@ function PlaceMap({ points, onPick, onSelect }) {
         .on("click", (e) => {
           L.DomEvent.stopPropagation(e);
           onSelect(p);
-        }),
-    );
+        });
+      markers.current.set(p.id, marker);
+    });
     if (valid.length)
       map.current.fitBounds(
         valid.map((p) => [+p.lat, +p.lng]),
         { padding: [50, 50], maxZoom: 14 },
       );
   }, [points]);
+  useEffect(() => {
+    if (!map.current) return;
+    markers.current.forEach((marker, id) =>
+      marker.setStyle({
+        radius: focus?.id === id ? 14 : 10,
+        color: focus?.id === id ? "#fff9e9" : "#d7e9db",
+        weight: focus?.id === id ? 5 : 3,
+        fillColor: focus?.id === id ? "#315f50" : "#528a72",
+      }),
+    );
+    if (
+      focus &&
+      Number.isFinite(+focus.lat) &&
+      Number.isFinite(+focus.lng)
+    ) {
+      map.current.flyTo(
+        [+focus.lat, +focus.lng],
+        Math.max(map.current.getZoom(), 15),
+        { animate: true, duration: 0.55 },
+      );
+      markers.current.get(focus.id)?.openTooltip();
+    }
+  }, [focus]);
   return <div className="leaflet-map" ref={ref} />;
 }
 function Editor({ initial, trips, onClose, onSave, onDelete, onCopy }) {

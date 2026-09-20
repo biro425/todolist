@@ -247,7 +247,7 @@ select{min-height:44px;border:1px solid var(--line);border-radius:var(--r-sm);ba
 
 /* 추억은 편집 폼보다 먼저 한 장의 여행 일지처럼 읽는다. */
 .memory-viewer-backdrop{
-  position:fixed;inset:0;z-index:120;display:grid;place-items:center;padding:28px;
+  position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:28px;
   background:rgba(46,42,36,.56);backdrop-filter:blur(7px);
 }
 .memory-viewer{
@@ -262,6 +262,17 @@ select{min-height:44px;border:1px solid var(--line);border-radius:var(--r-sm);ba
   border:1px solid rgba(228,222,207,.9);border-radius:50%;background:rgba(255,253,246,.9);color:var(--ink-2);cursor:pointer;
 }
 .memory-viewer-close:hover{background:var(--paper-deep);border-color:var(--line-strong)}
+.memory-viewer.is-trip-book::after{content:"";position:absolute;z-index:3;top:0;bottom:0;left:45%;width:1px;background:rgba(164,151,128,.18);box-shadow:0 0 18px rgba(76,67,52,.16);pointer-events:none}
+.memory-page-turn{animation:memory-page-turn .28s ease-out}
+@keyframes memory-page-turn{from{opacity:.45;transform:translateX(9px)}to{opacity:1;transform:none}}
+.memory-book-progress{position:absolute;left:calc(45% + 28px);right:72px;top:22px;z-index:5;display:flex;align-items:center;gap:5px;height:18px}
+.memory-book-progress span{width:18px;height:3px;border-radius:4px;background:#ddd6c7;transition:.2s}
+.memory-book-progress span.active{width:30px;background:var(--sage-700)}
+.memory-book-progress b{margin-left:7px;color:var(--ink-3);font-size:9px;font-weight:500;letter-spacing:.08em}
+.memory-page-button{position:absolute;z-index:6;top:50%;display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--line);border-radius:50%;background:rgba(255,253,246,.94);color:var(--sage-800);box-shadow:0 5px 18px rgba(54,49,40,.16);cursor:pointer;transform:translateY(-50%)}
+.memory-page-button.prev{left:12px}.memory-page-button.next{right:12px}
+.memory-page-button:hover:not(:disabled){background:#edf2e9;border-color:var(--sage-700)}
+.memory-page-button:disabled{opacity:0;pointer-events:none}
 .memory-viewer-visual{position:relative;min-height:560px;overflow:hidden;background:#eef0e8}
 .memory-viewer-visual.has-photo::after{
   content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(35,31,25,.35),transparent 38%);pointer-events:none;
@@ -305,6 +316,27 @@ select{min-height:44px;border:1px solid var(--line);border-radius:var(--r-sm);ba
 .memory-favorite{color:var(--rose-700)}
 .memory-edit{border:0;background:transparent;color:var(--ink-3);font-size:12px;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
 .memory-edit:hover{color:var(--sage-800)}
+.trip-cover-visual{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:54px;text-align:center;color:#fffdf6;background:linear-gradient(145deg,#6f8f79,#3f695b)}
+.trip-cover-visual::before{content:"";position:absolute;inset:22px;border:1px solid rgba(255,253,246,.34);border-radius:13px}
+.trip-cover-visual::after{content:"";position:absolute;inset:34px;border:1px dashed rgba(255,253,246,.18);border-radius:9px}
+.trip-cover-visual>*{position:relative;z-index:2}
+.trip-cover-emblem{display:grid;place-items:center;width:76px;height:76px;margin-bottom:20px;border:1px solid rgba(255,255,255,.35);border-radius:50%;background:rgba(255,255,255,.1)}
+.trip-cover-visual>small{font-size:9px;letter-spacing:.28em;opacity:.72}
+.trip-cover-visual>h2{max-width:310px;margin:20px 0 13px;font-family:'Gowun Batang',serif;font-size:34px;line-height:1.35;color:#fffdf6;text-wrap:balance}
+.trip-cover-visual>p{margin:0;font-size:11px;letter-spacing:.08em;opacity:.72}
+.trip-cover-orbit{position:absolute!important;z-index:1!important;border:1px solid rgba(255,255,255,.13);border-radius:50%}
+.trip-cover-orbit.one{width:280px;height:280px}.trip-cover-orbit.two{width:420px;height:170px;transform:rotate(-20deg)}
+.trip-cover-story{padding-top:64px}
+.trip-cover-intro{min-height:112px;margin:8px 0 25px;font-family:'Gowun Batang',serif;font-size:16px;line-height:2.15;color:var(--ink-2)}
+.trip-cover-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:22px}
+.trip-cover-stats span{padding:14px 8px;border:1px solid var(--line);border-radius:10px;background:rgba(255,253,246,.78);text-align:center;font-size:10px;color:var(--ink-3)}
+.trip-cover-stats b{display:block;margin-bottom:2px;font-family:'Gowun Batang',serif;font-size:21px;color:var(--sage-800)}
+.trip-cover-places{display:flex;flex-wrap:wrap;align-content:flex-start;gap:7px;min-height:78px}
+.trip-cover-places span{display:inline-flex;align-items:center;gap:4px;padding:6px 9px;border:1px solid var(--line);border-radius:16px;background:var(--paper-deep);font-size:10px;color:var(--ink-2)}
+.trip-cover-places small{color:var(--ink-3)}
+.trip-cover-foot .memory-edit{display:inline-flex;align-items:center;gap:5px}
+.book-next-link{display:inline-flex;align-items:center;gap:4px;border:0;background:transparent;color:var(--sage-800);font-size:12px;font-weight:600;cursor:pointer}
+.book-next-link:hover{text-decoration:underline;text-underline-offset:4px}
 
 @media (max-width:940px){
   .settings-overview{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -323,6 +355,13 @@ select{min-height:44px;border:1px solid var(--line);border-radius:var(--r-sm);ba
   .memory-viewer-story h2{font-size:25px}
   .memory-viewer-note{min-height:120px;font-size:15px}
   .memory-viewer-foot{align-items:flex-start;flex-direction:column}
+  .memory-viewer.is-trip-book::after{display:none}
+  .memory-book-progress{position:fixed;left:22px;right:74px;top:17px}
+  .memory-page-button{position:fixed;top:auto;bottom:18px;transform:none}
+  .memory-page-button.prev{left:18px}.memory-page-button.next{right:18px}
+  .trip-cover-visual{min-height:42vh;height:42vh;padding:38px 28px}
+  .trip-cover-visual>h2{font-size:28px}
+  .trip-cover-story{min-height:58vh;padding-top:46px}
 }
 
 /* 여행별 방문 순서 · 실제 도로 경로 ---------------------------- */
