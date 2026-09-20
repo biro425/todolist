@@ -245,6 +245,26 @@ select{min-height:44px;border:1px solid var(--line);border-radius:var(--r-sm);ba
 .record-tile>img{filter:saturate(.82) contrast(.96)}
 .shortcut-icon.trip{background:#f3e7d0;color:#a27631}
 
+/* 기록에서 여행 표지와 장소 페이지를 분리한다. */
+.record-collection-section{margin-top:28px}
+.record-collection-section+ .record-collection-section{margin-top:42px;padding-top:32px;border-top:1px solid var(--line)}
+.record-collection-section>header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:17px}
+.record-collection-section>header h2{margin:5px 0 0;font-family:'Gowun Batang',serif;font-size:22px;color:var(--ink)}
+.record-collection-section>header p{max-width:420px;margin:0;text-align:right;font-size:11px;line-height:1.7;color:var(--ink-3)}
+.record-trip-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.record-trip-cover{overflow:hidden;width:100%;padding:0;border:1px solid var(--line);border-radius:14px;background:var(--paper);text-align:left;cursor:pointer;transition:.2s}
+.record-trip-cover:hover{border-color:var(--sage-700);box-shadow:0 9px 24px rgba(58,50,38,.1);transform:translateY(-3px)}
+.record-trip-cover-art{position:relative;display:flex;height:174px;flex-direction:column;align-items:center;justify-content:center;gap:12px;overflow:hidden;color:#fffdf6;background:linear-gradient(145deg,#789581,#456d5e)}
+.record-trip-cover-art::before{content:"";position:absolute;inset:13px;border:1px solid rgba(255,255,255,.25);border-radius:9px}
+.record-trip-cover-art>svg,.record-trip-cover-art>small{position:relative;z-index:2}.record-trip-cover-art>small{font-size:8px;letter-spacing:.24em;opacity:.75}
+.record-trip-orbit{position:absolute;border:1px solid rgba(255,255,255,.13);border-radius:50%}.record-trip-orbit.one{width:140px;height:140px}.record-trip-orbit.two{width:230px;height:82px;transform:rotate(-18deg)}
+.record-trip-cover-copy{display:block;padding:17px 18px 16px}
+.record-trip-cover-copy>small,.record-trip-cover-copy>b,.record-trip-cover-copy>em,.record-trip-cover-copy>span{display:block}
+.record-trip-cover-copy>small{font-size:9px;color:var(--ink-3)}
+.record-trip-cover-copy>b{margin:8px 0 5px;font-family:'Gowun Batang',serif;font-size:18px;color:var(--ink)}
+.record-trip-cover-copy>em{font-size:10px;font-style:normal;color:var(--ink-3)}
+.record-trip-cover-copy>span{display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:15px;color:var(--sage-800);font-size:10px;font-weight:700}
+
 /* 추억은 편집 폼보다 먼저 한 장의 여행 일지처럼 읽는다. */
 .memory-viewer-backdrop{
   position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:28px;
@@ -345,6 +365,7 @@ select{min-height:44px;border:1px solid var(--line);border-radius:var(--r-sm);ba
 
 @media (max-width:940px){
   .settings-overview{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .record-trip-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .memory-viewer{grid-template-columns:minmax(250px,.75fr) minmax(350px,1.25fr)}
   .memory-viewer-story{padding-inline:38px}
 }
@@ -360,6 +381,8 @@ select{min-height:44px;border:1px solid var(--line);border-radius:var(--r-sm);ba
   .memory-viewer-story h2{font-size:25px}
   .memory-viewer-note{min-height:120px;font-size:15px}
   .memory-viewer-foot{align-items:flex-start;flex-direction:column}
+  .record-collection-section>header{align-items:flex-start;flex-direction:column;gap:7px}.record-collection-section>header p{text-align:left}
+  .record-trip-grid{grid-template-columns:1fr}
   .memory-viewer.is-trip-book::after{display:none}
   .memory-book-progress{position:fixed;left:22px;right:74px;top:17px}
   .memory-page-button{position:fixed;top:auto;bottom:18px;transform:none}

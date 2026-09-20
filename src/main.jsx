@@ -345,6 +345,7 @@ function App() {
     [query, setQuery] = useState(""),
     [modal, setModal] = useState(null),
     [memoryPreview, setMemoryPreview] = useState(null),
+    [previewMode, setPreviewMode] = useState("single"),
     [toast, setToast] = useState(""),
     [selected, setSelected] = useState(TODAY),
     [month, setMonth] = useState(new Date()),
@@ -363,6 +364,10 @@ function App() {
   const notify = (t) => {
     setToast(t);
     setTimeout(() => setToast(""), 3200);
+  };
+  const openMemory = (memory, mode = "single") => {
+    setPreviewMode(mode);
+    setMemoryPreview(memory);
   };
   useEffect(() => {
     try {
@@ -759,7 +764,7 @@ function App() {
   const RecordCard = ({ i, onHover }) => (
     <button
       className="record-tile"
-      onClick={() => setMemoryPreview(i)}
+      onClick={() => openMemory(i, "single")}
       onMouseEnter={() => onHover?.(i)}
       onMouseLeave={() => onHover?.(null)}
       onFocus={() => onHover?.(i)}
@@ -792,6 +797,43 @@ function App() {
       </div>
     </button>
   );
+  const TripCoverCard = ({ trip }) => {
+    const pages = data.items
+      .filter(
+        (item) =>
+          ["record", "place"].includes(item.type) && item.trip === trip.id,
+      )
+      .sort(
+        (a, b) =>
+          (+a.visitOrder || Number.MAX_SAFE_INTEGER) -
+            (+b.visitOrder || Number.MAX_SAFE_INTEGER) ||
+          a.date.localeCompare(b.date),
+      );
+    const places = [...new Set(pages.map((item) => item.place).filter(Boolean))];
+    return (
+      <button
+        className="record-trip-cover"
+        onClick={() =>
+          pages.length
+            ? openMemory(pages[0], "book")
+            : (setPage("places"), setTripFilter(trip.id))
+        }
+      >
+        <span className="record-trip-cover-art">
+          <span className="record-trip-orbit one" />
+          <span className="record-trip-orbit two" />
+          <Plane size={26} />
+          <small>MY TRAVEL NOTE</small>
+        </span>
+        <span className="record-trip-cover-copy">
+          <small>{trip.date} — {trip.endDate}</small>
+          <b>{trip.title}</b>
+          <em>{pages.length}개의 페이지 · {places.length}곳</em>
+          <span>여행책 펼쳐보기 <ChevronRight size={14} /></span>
+        </span>
+      </button>
+    );
+  };
   function exportICS() {
     let esc = (s) =>
       (s || "")
@@ -992,7 +1034,7 @@ function App() {
                     <BookOpen size={30}/><span className="photo-label">RECENT MEMORY</span>
                   </div>
                   <div className="memory-copy">
-                    {items.filter(i => ["record","place"].includes(i.type)).slice(-1).map(i => <React.Fragment key={i.id}><span>{fmt(i.date)} {i.place && `· ${i.place}`}</span><h2>{i.title}</h2><p>{i.note || "이 순간의 이야기를 조금 더 들려주세요."}</p><button onClick={() => setMemoryPreview(i)}>추억 펼쳐보기 <ArrowUpRight size={14}/></button></React.Fragment>)}
+                    {items.filter(i => ["record","place"].includes(i.type)).slice(-1).map(i => <React.Fragment key={i.id}><span>{fmt(i.date)} {i.place && `· ${i.place}`}</span><h2>{i.title}</h2><p>{i.note || "이 순간의 이야기를 조금 더 들려주세요."}</p><button onClick={() => openMemory(i, "single")}>추억 펼쳐보기 <ArrowUpRight size={14}/></button></React.Fragment>)}
                     {!items.some(i => ["record","place"].includes(i.type)) && <><span>FIRST MEMORY</span><h2>첫 이야기를 남겨볼까요?</h2><p>오늘 마음에 머문 순간을 한 줄로 적어보세요.</p><button onClick={() => add("record")}>기록 시작하기 <ArrowUpRight size={14}/></button></>}
                   </div>
                 </section>
@@ -1000,7 +1042,7 @@ function App() {
                 <section className="home-panel places-glance">
                   <header className="home-panel-head"><div><span className="panel-index">MY MAP</span><h2>쌓여가는 발자국</h2></div><button className="soft-link" onClick={() => setPage("places")}>지도 보기 <ArrowUpRight size={14}/></button></header>
                   <div className="places-number"><b>{data.items.filter(i=>["record","place"].includes(i.type)&&i.place).length}</b><span>곳의 기억</span></div>
-                  <div className="places-dots">{data.items.filter(i=>["record","place"].includes(i.type)&&i.place).slice(0,5).map((i,n)=><button key={i.id} style={{left:`${14+n*17}%`,top:`${30+(n%2)*27}%`}} aria-label={i.title} onClick={()=>setMemoryPreview(i)}><MapPin size={14}/></button>)}</div>
+                  <div className="places-dots">{data.items.filter(i=>["record","place"].includes(i.type)&&i.place).slice(0,5).map((i,n)=><button key={i.id} style={{left:`${14+n*17}%`,top:`${30+(n%2)*27}%`}} aria-label={i.title} onClick={()=>openMemory(i, "single")}><MapPin size={14}/></button>)}</div>
                   <p>멀리 떠난 여행도, 집 앞의 작은 발견도<br/>모두 나만의 지도가 됩니다.</p>
                   <button className="inline-add" onClick={() => add("record")}><Plus size={15}/> 장소가 담긴 추억</button>
                 </section>
@@ -1571,20 +1613,72 @@ function App() {
                 </div>
                 <span>최근 기록부터 차곡차곡</span>
               </div>
-              <div className="record-grid">
-                {items
-                  .filter((i) =>
-                    recordView === "일상"
-                      ? i.type === "record" && !i.place
-                      : recordView === "장소·여행"
-                        ? ["record", "place"].includes(i.type) && !!i.place
-                        : ["record", "place"].includes(i.type),
-                  )
-                  .sort((a, b) => b.date.localeCompare(a.date))
-                  .map((i) => (
-                    <RecordCard key={i.id} i={i} />
-                  ))}
-              </div>
+              {recordView !== "일상" && (
+                <>
+                  <section className="record-collection-section trip-cover-collection">
+                    <header>
+                      <div>
+                        <span className="panel-index">TRAVEL COVERS</span>
+                        <h2>여행 표지</h2>
+                      </div>
+                      <p>여행 전체를 담은 표지예요. 누르면 여행책이 열려요.</p>
+                    </header>
+                    <div className="record-trip-grid">
+                      {data.trips
+                        .filter(
+                          (trip) =>
+                            !query ||
+                            trip.title.toLowerCase().includes(query.toLowerCase()) ||
+                            data.items.some(
+                              (item) => item.trip === trip.id && items.some((matched) => matched.id === item.id),
+                            ),
+                        )
+                        .map((trip) => <TripCoverCard key={trip.id} trip={trip} />)}
+                    </div>
+                  </section>
+                  <section className="record-collection-section place-page-collection">
+                    <header>
+                      <div>
+                        <span className="panel-index">PLACE PAGES</span>
+                        <h2>장소별 사진과 기록</h2>
+                      </div>
+                      <p>카드를 누르면 선택한 사진 한 장만 펼쳐져요.</p>
+                    </header>
+                    <div className="record-grid">
+                      {items
+                        .filter(
+                          (i) =>
+                            ["record", "place"].includes(i.type) &&
+                            (!!i.place || !!i.trip),
+                        )
+                        .sort((a, b) => b.date.localeCompare(a.date))
+                        .map((i) => <RecordCard key={i.id} i={i} />)}
+                    </div>
+                  </section>
+                </>
+              )}
+              {recordView !== "장소·여행" && (
+                <section className="record-collection-section daily-record-collection">
+                  <header>
+                    <div>
+                      <span className="panel-index">DAILY NOTES</span>
+                      <h2>일상의 기록</h2>
+                    </div>
+                    <p>여행과 장소에 묶이지 않은 하루의 이야기예요.</p>
+                  </header>
+                  <div className="record-grid">
+                    {items
+                      .filter(
+                        (i) =>
+                          ["record", "place"].includes(i.type) &&
+                          !i.place &&
+                          !i.trip,
+                      )
+                      .sort((a, b) => b.date.localeCompare(a.date))
+                      .map((i) => <RecordCard key={i.id} i={i} />)}
+                  </div>
+                </section>
+              )}
               {!items.some((i) => ["record", "place"].includes(i.type)) && (
                 <Empty />
               )}
@@ -1641,7 +1735,10 @@ function App() {
                 <TripItinerary
                   trip={selectedTrip}
                   memories={tripMemories}
-                  onOpen={setMemoryPreview}
+                  onOpen={(memory) => openMemory(memory, "single")}
+                  onOpenBook={() =>
+                    tripMemories.length && openMemory(tripMemories[0], "book")
+                  }
                   onMove={moveTripMemory}
                   onAdd={() =>
                     add("record", {
@@ -1666,7 +1763,7 @@ function App() {
                               : i.trip === tripFilter)),
                       )}
                       focus={mapFocus}
-                      onSelect={setMemoryPreview}
+                      onSelect={(memory) => openMemory(memory, "single")}
                       onPick={(p) => add("record", p)}
                     />
                     <div className="map-caption">
@@ -1963,20 +2060,28 @@ function App() {
         <MemoryViewer
           key={memoryPreview.id}
           memory={memoryPreview}
-          trip={data.trips.find((t) => t.id === memoryPreview.trip)}
-          tripMemories={data.items
-            .filter(
-              (item) =>
-                ["record", "place"].includes(item.type) &&
-                memoryPreview.trip &&
-                item.trip === memoryPreview.trip,
-            )
-            .sort(
-              (a, b) =>
-                (+a.visitOrder || Number.MAX_SAFE_INTEGER) -
-                  (+b.visitOrder || Number.MAX_SAFE_INTEGER) ||
-                a.date.localeCompare(b.date),
-            )}
+          trip={
+            previewMode === "book"
+              ? data.trips.find((t) => t.id === memoryPreview.trip)
+              : null
+          }
+          tripMemories={
+            previewMode === "book"
+              ? data.items
+                  .filter(
+                    (item) =>
+                      ["record", "place"].includes(item.type) &&
+                      memoryPreview.trip &&
+                      item.trip === memoryPreview.trip,
+                  )
+                  .sort(
+                    (a, b) =>
+                      (+a.visitOrder || Number.MAX_SAFE_INTEGER) -
+                        (+b.visitOrder || Number.MAX_SAFE_INTEGER) ||
+                      a.date.localeCompare(b.date),
+                  )
+              : []
+          }
           onClose={() => setMemoryPreview(null)}
           onEdit={(target = memoryPreview) => {
             setMemoryPreview(null);
@@ -2164,7 +2269,7 @@ function MemoryViewer({ memory, trip, tripMemories = [], onClose, onEdit, onAdd 
   );
 }
 
-function TripItinerary({ trip, memories, onOpen, onMove, onAdd, onEditTrip }) {
+function TripItinerary({ trip, memories, onOpen, onOpenBook, onMove, onAdd, onEditTrip }) {
   const [routeInfo, setRouteInfo] = useState(null);
   const [routeError, setRouteError] = useState("");
   const mapped = memories
@@ -2191,7 +2296,7 @@ function TripItinerary({ trip, memories, onOpen, onMove, onAdd, onEditTrip }) {
         </div>
         <div className="trip-itinerary-actions">
           {!!memories.length && (
-            <button className="secondary" onClick={() => onOpen(memories[0])}>
+            <button className="secondary" onClick={onOpenBook}>
               <BookOpen size={15} /> 여행책 보기
             </button>
           )}
